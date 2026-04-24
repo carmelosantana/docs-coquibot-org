@@ -11,6 +11,9 @@
 :root {
   --font-geist-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
   --font-geist-mono: 'Geist Mono', ui-monospace, monospace;
+  --link: oklch(0.45 0.14 154);
+  --link-hover: oklch(0.38 0.12 154);
+  color-scheme: light;
 }
 
 /* ──────────────────── Nextra color overrides ──────────────────── */
@@ -45,30 +48,57 @@
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
-  --border: oklch(0.922 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --primary: oklch(0.55 0.15 145);
   --primary-foreground: oklch(0.145 0 0);
   --accent: oklch(0.88 0.16 120);
   --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.74 0.16 150);
+  --success-foreground: oklch(0.145 0 0);
+  --warning: oklch(0.84 0.14 92);
+  --warning-foreground: oklch(0.22 0.02 92);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
   --ring: oklch(0.55 0.15 145);
   --radius: 0.625rem;
+  --nextra-navbar-height: 64px;
+  --nextra-content-width: 72rem;
 }
 
 .dark {
-  --background: oklch(0.1 0.005 150);
+  color-scheme: dark;
+  --background: oklch(0.07 0.004 150);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.14 0.005 150);
+  --card: oklch(0.1 0.004 150);
   --card-foreground: oklch(0.985 0 0);
-  --border: oklch(0.22 0.005 150);
-  --muted: oklch(0.2 0.005 150);
+  --popover: oklch(0.1 0.004 150);
+  --popover-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.15 0.004 150);
+  --secondary-foreground: oklch(0.985 0 0);
+  --border: oklch(0.18 0.004 150);
+  --muted: oklch(0.15 0.004 150);
   --muted-foreground: oklch(0.708 0 0);
   --primary: oklch(0.88 0.16 120);
   --primary-foreground: oklch(0.145 0 0);
   --accent: oklch(0.55 0.15 145);
   --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --success: oklch(0.78 0.16 146);
+  --success-foreground: oklch(0.145 0 0);
+  --warning: oklch(0.8 0.13 90);
+  --warning-foreground: oklch(0.16 0.02 90);
+  --input: oklch(0.18 0.004 150);
   --ring: oklch(0.88 0.16 120);
+  --link: oklch(0.82 0.14 130);
+  --link-hover: oklch(0.9 0.16 126);
 }
 
 /* ──────────────────── Nextra surface overrides ──────────────────── */
@@ -82,33 +112,394 @@
 }
 
 html.dark {
-  /* Deep Slate background: oklch(0.1 0.005 150) ≈ rgb(19, 24, 22) */
-  --nextra-bg: 19, 24, 22;
+  /* Near-black green slate: oklch(0.07 0.004 150) ≈ rgb(11, 14, 13) */
+  --nextra-bg: 11, 14, 13;
 
-  /* Card surfaces: oklch(0.14 0.005 150) ≈ rgb(29, 35, 33) */
-  --nextra-card-bg: 29, 35, 33;
+  /* Card surfaces: oklch(0.1 0.004 150) ≈ rgb(17, 21, 19) */
+  --nextra-card-bg: 17, 21, 19;
 }
 
 /* ──────────────────── Typography ──────────────────── */
 
 body {
   font-family: var(--font-geist-sans);
+  min-height: 100vh;
+  background: rgb(var(--nextra-bg));
+  color: var(--foreground);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 code, pre, kbd, samp {
   font-family: var(--font-geist-mono);
 }
 
+::selection {
+  background: color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+a {
+  color: var(--link);
+  text-underline-offset: 0.18em;
+  transition:
+    color 0.18s ease,
+    text-decoration-color 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+a:hover {
+  color: var(--link-hover);
+}
+
+article {
+  color: color-mix(in srgb, var(--foreground) 84%, var(--background));
+}
+
+article a,
+.coqui-doc-link {
+  color: var(--link);
+  font-weight: 500;
+  text-decoration-color: color-mix(in srgb, var(--link) 42%, transparent);
+}
+
+article a:hover,
+.coqui-doc-link:hover {
+  color: var(--link-hover);
+  text-decoration-color: currentColor;
+}
+
+article :where(h1, h2, h3, h4) {
+  color: var(--foreground);
+  letter-spacing: -0.03em;
+}
+
+article h1 {
+  font-size: clamp(2.25rem, 5vw, 3.4rem);
+  line-height: 1;
+}
+
+article :where(p, li) {
+  line-height: 1.8;
+}
+
+article :where(strong, th) {
+  color: var(--foreground);
+}
+
+article blockquote {
+  border-left: 3px solid var(--primary);
+  border-radius: calc(var(--radius) + 2px);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  padding: 1rem 1.25rem;
+}
+
+.coqui-callout {
+  border-left-color: var(--accent);
+}
+
+article img {
+  border-radius: calc(var(--radius) + 6px);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--card) 84%, transparent);
+}
+
+article table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: calc(var(--radius) + 6px);
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+}
+
+article th,
+article td {
+  border-color: color-mix(in srgb, var(--border) 76%, transparent);
+}
+
+article hr {
+  border-color: color-mix(in srgb, var(--border) 76%, transparent);
+}
+
 /* ──────────────────── Nextra component refinements ──────────────────── */
 
-/* Sidebar active link uses Coqui Green / Bright Lime via Nextra primary */
+.nextra-navbar > div {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.nextra-navbar-blur {
+  border-bottom-color: color-mix(in srgb, var(--border) 72%, transparent) !important;
+  background: color-mix(in srgb, rgb(var(--nextra-bg)) 94%, transparent) !important;
+  backdrop-filter: blur(18px) saturate(135%);
+}
+
+html.dark .nextra-navbar-blur {
+  background: color-mix(in srgb, rgb(var(--nextra-bg)) 98%, transparent) !important;
+}
+
+html.dark .nextra-navbar :where(a, button) {
+  color: var(--foreground) !important;
+}
+
+html.dark .nextra-navbar :where(a, button):hover {
+  color: var(--foreground) !important;
+}
+
+.nextra-sidebar {
+  background: transparent;
+}
+
+.nextra-sidebar :where(a, summary) {
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.nextra-sidebar :where(a:not([aria-current='page'])) {
+  color: color-mix(in srgb, var(--foreground) 72%, var(--background));
+}
+
+.nextra-sidebar :where(a:not([aria-current='page'])):hover {
+  color: var(--foreground);
+}
+
+html.dark .nextra-sidebar :where(a:not([aria-current='page']), summary) {
+  color: var(--foreground);
+}
+
+html.dark .nextra-sidebar :where(a:not([aria-current='page']), summary):hover {
+  color: var(--foreground);
+}
+
+.nextra-sidebar :where(a[aria-current='page']) {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+html.dark .nextra-sidebar :where(a[aria-current='page']) {
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  color: var(--foreground);
+}
+
+.nextra-sidebar-footer {
+  border-top-color: color-mix(in srgb, var(--border) 76%, transparent);
+}
+
+.nextra-toc {
+  padding-top: 0.75rem;
+}
+
+.nextra-toc > * {
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: calc(var(--radius) + 6px);
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  padding: 1rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+html.dark .nextra-toc > * {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
 
 /* Code block styling to match Coqui sites */
 article pre {
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) + 6px);
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.08);
+}
+
+html.dark article pre {
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+}
+
+.nextra-code {
+  border-radius: calc(var(--radius) + 6px);
+}
+
+code.nextra-code {
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  padding: 0.18em 0.45em;
+}
+
+pre code.nextra-code:not([class*='twoslash-']) {
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
 
 /* Callout styling */
 .nextra-callout {
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) + 4px);
+  border-color: color-mix(in srgb, var(--border) 82%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.coqui-navbar-logo {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.7rem;
+  white-space: nowrap;
+  color: var(--foreground);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.coqui-navbar-logo__mark,
+.coqui-footer__mark {
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+}
+
+.coqui-navbar-logo__text {
+  font-size: 0.96rem;
+}
+
+.coqui-navbar-logo__meta {
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.coqui-shell-link {
+  color: color-mix(in srgb, var(--foreground) 78%, var(--background));
+  text-decoration: none;
+}
+
+.coqui-shell-link:hover {
+  color: var(--foreground);
+}
+
+.coqui-footer {
+  width: 100%;
+  border-top: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  padding-top: 1.5rem;
+}
+
+.coqui-footer__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+}
+
+.coqui-footer__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  text-decoration: none;
+}
+
+.coqui-footer__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.coqui-footer__title {
+  color: var(--foreground);
+  font-size: 0.96rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.coqui-footer__tag {
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+}
+
+.coqui-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  font-size: 0.93rem;
+}
+
+.coqui-footer__summary {
+  margin: 1rem 0 0;
+  max-width: 42rem;
+  color: var(--muted-foreground);
+  font-size: 0.94rem;
+  line-height: 1.7;
+}
+
+.coqui-footer__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  color: var(--muted-foreground);
+  font-size: 0.82rem;
+}
+
+.coqui-toc-note {
+  margin-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  padding-top: 1rem;
+}
+
+.coqui-toc-note__title {
+  color: var(--foreground);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.coqui-toc-note__body {
+  margin: 0.5rem 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.coqui-toc-note__link {
+  display: inline-flex;
+  margin-top: 0.7rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+@media (min-width: 640px) {
+  .nextra-navbar > div {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .coqui-navbar-logo__meta {
+    display: none;
+  }
+
+  .coqui-footer__top {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

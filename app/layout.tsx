@@ -1,9 +1,9 @@
 import { Footer, LastUpdated, Layout, Navbar } from 'nextra-theme-docs'
-import { Head } from 'nextra/components'
+import { Head, Search } from 'nextra/components'
 import { getPageMap } from 'nextra/page-map'
 import { Geist, Geist_Mono } from 'next/font/google'
 import Script from 'next/script'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import 'nextra-theme-docs/style.css'
 import './globals.css'
 
@@ -27,28 +27,66 @@ export const metadata: Metadata = {
     template: '%s — Coqui Docs',
   },
   description:
-    'Documentation for Coqui — terminal AI agent with multi-model orchestration, persistent sessions, and runtime extensibility via Composer.',
+    'Coqui is a lightweight, hackable agent runtime that adapts to how you work. Automate workflows, persist memory across sessions, schedule recurring tasks, and extend its abilities at runtime.',
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_BASE_URL || 'https://docs.coquibot.org'
   ),
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
     title: 'Coqui Docs',
     description:
-      'Documentation for Coqui — terminal AI agent with multi-model orchestration, persistent sessions, and runtime extensibility via Composer.',
+      'Installation guides, feature references, and development docs for Coqui.',
     url: '/',
     siteName: 'Coqui Docs',
     locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'Coqui Docs',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Coqui Docs',
+    description:
+      'Installation guides, feature references, and development docs for Coqui.',
+    images: ['/opengraph-image'],
   },
   icons: {
-    icon: '/coqui-logo.svg',
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/apple-icon.png',
+    shortcut: '/favicon.png',
   },
 }
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#131816' },
+  ],
+}
+
 const logo = (
-  <span className="flex items-center gap-2 font-semibold">
-    <img src="/coqui-logo.svg" alt="" width={24} height={24} />
-    Coqui Docs
+  <span className="coqui-navbar-logo">
+    <img
+      src="/coqui-bot-512.webp"
+      alt="Coqui"
+      width={32}
+      height={32}
+      className="coqui-navbar-logo__mark"
+    />
+    <span className="coqui-navbar-logo__text">Coqui Docs</span>
+    <span className="coqui-navbar-logo__meta">PHP 8.4+ / MIT License</span>
   </span>
 )
 
@@ -62,18 +100,69 @@ const navbar = (
 
 const footer = (
   <Footer>
-    <div className="flex w-full flex-col items-center gap-2 sm:flex-row sm:justify-between">
-      <span>MIT {new Date().getFullYear()} © Coqui Bot</span>
-      <div className="flex gap-4 text-sm">
-        <a href="https://coquibot.org" target="_blank" rel="noopener noreferrer">
-          Website
+    <div className="coqui-footer">
+      <div className="coqui-footer__top">
+        <a
+          href="https://coquibot.org"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="coqui-footer__brand"
+        >
+          <img
+            src="/coqui-bot-512.webp"
+            alt="Coqui"
+            width={36}
+            height={36}
+            className="coqui-footer__mark"
+          />
+          <span className="coqui-footer__title-group">
+            <span className="coqui-footer__title">Coqui Docs</span>
+            <span className="coqui-footer__tag">Personal operating system docs</span>
+          </span>
         </a>
-        <a href="https://coqui.space" target="_blank" rel="noopener noreferrer">
-          Marketplace
-        </a>
-        <a href="https://github.com/sponsors/carmelosantana" target="_blank" rel="noopener noreferrer">
-          Sponsor
-        </a>
+
+        <nav className="coqui-footer__links" aria-label="Footer">
+          <a href="/getting-started" className="coqui-shell-link">
+            Getting started
+          </a>
+          <a href="/features" className="coqui-shell-link">
+            Features
+          </a>
+          <a
+            href="https://coquibot.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="coqui-shell-link"
+          >
+            Website
+          </a>
+          <a
+            href="https://github.com/AgentCoqui/coqui"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="coqui-shell-link"
+          >
+            GitHub
+          </a>
+          <a
+            href="https://discord.gg/TaCpZVqbbT"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="coqui-shell-link"
+          >
+            Discord
+          </a>
+        </nav>
+      </div>
+
+      <p className="coqui-footer__summary">
+        Install, extend, and operate Coqui through a readable PHP runtime with
+        persistent memory, background tasks, and toolkits.
+      </p>
+
+      <div className="coqui-footer__bottom">
+        <span>MIT {new Date().getFullYear()} © Coqui Bot</span>
+        <span>Built on php-agents.</span>
       </div>
     </div>
   </Footer>
@@ -93,7 +182,7 @@ export default async function RootLayout({
       <Head>
       </Head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable}`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
           <Script
@@ -109,9 +198,38 @@ export default async function RootLayout({
           docsRepositoryBase="https://github.com/AgentCoqui/coqui/tree/main/docs"
           footer={footer}
           editLink="Edit this page on GitHub"
+          search={<Search placeholder="Search Coqui docs..." />}
+          darkMode={true}
           lastUpdated={<LastUpdated locale="en-US">Last updated</LastUpdated>}
-          sidebar={{ defaultMenuCollapseLevel: 1 }}
-          toc={{ float: true }}
+          feedback={{
+            content: 'Question? Give us feedback →',
+            labels: 'documentation',
+            link: 'https://github.com/AgentCoqui/coqui/issues/new',
+          }}
+          navigation={{ prev: true, next: true }}
+          sidebar={{ defaultMenuCollapseLevel: 1, autoCollapse: true, toggleButton: true }}
+          toc={{
+            title: 'On This Page',
+            backToTop: 'Back to top',
+            float: true,
+            extraContent: (
+              <div className="coqui-toc-note">
+                <div className="coqui-toc-note__title">Need help shipping?</div>
+                <p className="coqui-toc-note__body">
+                  Join the Coqui Discord community for install help, toolkit
+                  questions, and release updates.
+                </p>
+                <a
+                  href="https://discord.gg/TaCpZVqbbT"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="coqui-shell-link coqui-toc-note__link"
+                >
+                  Join Discord
+                </a>
+              </div>
+            ),
+          }}
         >
           {children}
         </Layout>

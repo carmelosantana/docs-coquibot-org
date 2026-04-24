@@ -1,0 +1,241 @@
+---
+title: "Hello Toolkit"
+description: "Minimal reference toolkit example with the key source files inline."
+---
+
+
+A minimal reference toolkit for [Coqui](https://github.com/coquibot/coqui) that demonstrates how to create custom toolkits. Use this as a starting point for building your own.
+
+## Requirements
+
+- PHP 8.4+
+- [Coqui](https://github.com/coquibot/coqui)
+
+## Installation
+
+Add the example as a path repository in your workspace `composer.json`, then require it:
+
+```bash
+composer require coquibot/hello-toolkit
+```
+
+When installed alongside Coqui, the toolkit is **auto-discovered** via `extra.php-agents.toolkits` — no manual registration needed.
+
+## Tools Provided
+
+### `hello_world`
+
+Returns a friendly greeting, optionally personalized with a name.
+
+| Parameter | Type   | Required | Description                        |
+|-----------|--------|----------|------------------------------------|
+| `name`    | string | No       | The name to greet (default: World) |
+
+**Example output:** `Hello, Alice! 👋`
+
+### `hello_time`
+
+Returns the current server date and time.
+
+| Parameter | Type   | Required | Description                                  |
+|-----------|--------|----------|----------------------------------------------|
+| `format`  | string | No       | PHP date format string (default: ISO 8601)   |
+
+**Example output:** `Current time: 2026-02-14T10:30:00-05:00`
+
+## Project Structure
+
+```
+hello-toolkit/
+├── composer.json           # Package manifest with auto-discovery config
+├── README.md               # This file
+└── src/
+    └── HelloToolkit.php    # Main toolkit class implementing ToolkitInterface
+```
+
+## How It Works
+
+1. **`composer.json`** declares the toolkit class in `extra.php-agents.toolkits`
+2. Coqui's `ToolkitDiscovery` reads this declaration at boot
+3. The toolkit is instantiated and its tools are registered with the agent
+4. The LLM can now call `hello_world` and `hello_time` as tool calls
+
+## Creating Your Own Toolkit
+
+See the [Toolkit Development Guide](/guides/extending) for a comprehensive walkthrough, or use this project as a template:
+
+1. Copy this directory
+2. Update `composer.json` with your package name, namespace, and dependencies
+3. Rename and modify `src/HelloToolkit.php` to implement your tools
+4. Install into Coqui with `composer require`
+
+## License
+
+MIT
+
+## Source Files
+
+- [examples/hello-toolkit/](https://github.com/AgentCoqui/coqui/tree/main/examples/hello-toolkit)
+- [examples/hello-toolkit/src/](https://github.com/AgentCoqui/coqui/tree/main/examples/hello-toolkit/src)
+- [examples/hello-toolkit/composer.json](https://github.com/AgentCoqui/coqui/blob/main/examples/hello-toolkit/composer.json)
+- [examples/hello-toolkit/README.md](https://github.com/AgentCoqui/coqui/blob/main/examples/hello-toolkit/README.md)
+- [examples/hello-toolkit/src/HelloToolkit.php](https://github.com/AgentCoqui/coqui/blob/main/examples/hello-toolkit/src/HelloToolkit.php)
+
+## composer.json
+
+```json
+{
+    "name": "coquibot/hello-toolkit",
+    "description": "Hello World toolkit for Coqui — demonstrates how to create custom toolkits",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Carmelo Santana"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "CoquiBot\\HelloToolkit\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^8.4",
+        "carmelosantana/php-agents": "^0.2 || @dev"
+    },
+    "extra": {
+        "php-agents": {
+            "toolkits": [
+                "CoquiBot\\HelloToolkit\\HelloToolkit"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
+```
+
+## HelloToolkit.php
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace CoquiBot\HelloToolkit;
+
+use CarmeloSantana\PHPAgents\Contract\ToolInterface;
+use CarmeloSantana\PHPAgents\Contract\ToolkitInterface;
+use CarmeloSantana\PHPAgents\Tool\Tool;
+use CarmeloSantana\PHPAgents\Tool\ToolResult;
+use CarmeloSantana\PHPAgents\Tool\Parameter\StringParameter;
+
+/**
+ * A minimal reference toolkit demonstrating how to create Coqui toolkits.
+ *
+ * This toolkit provides two simple tools:
+ * - hello_world: Returns a personalized greeting
+ * - hello_time: Returns the current server time
+ *
+ * Use this as a template when building your own toolkits. Key patterns:
+ * - Implement ToolkitInterface with tools() and guidelines()
+ * - Each tool is built via a private method returning a Tool instance
+ * - Parameters use typed parameter classes (StringParameter, NumberParameter, etc.)
+ * - Callbacks return ToolResult::success() or ToolResult::error()
+ * - Declare the toolkit in composer.json extra.php-agents.toolkits for auto-discovery
+ */
+final class HelloToolkit implements ToolkitInterface
+{
+    /**
+     * @return ToolInterface[]
+     */
+    public function tools(): array
+    {
+        return [
+            $this->helloWorldTool(),
+            $this->helloTimeTool(),
+        ];
+    }
+
+    /**
+     * Usage guidelines injected into the LLM's system prompt.
+     *
+     * Wrap guidelines in XML-style tags for clear boundaries.
+     * Keep them concise — every token counts against the context window.
+     */
+    public function guidelines(): string
+    {
+        return <<<'GUIDELINES'
+            <HELLO-TOOLKIT-GUIDELINES>
+            - Use hello_world to greet the user. Optional parameter: name.
+            - Use hello_time to report the current server time in any format.
+            </HELLO-TOOLKIT-GUIDELINES>
+            GUIDELINES;
+    }
+
+    /**
+     * Build the hello_world tool.
+     *
+     * Each tool should be constructed in its own private method for readability.
+     * The Tool class takes: name, description, parameters array, and a callback.
+     */
+    private function helloWorldTool(): ToolInterface
+    {
+        return new Tool(
+            name: 'hello_world',
+            description: 'Return a friendly greeting. Optionally personalize it with a name.',
+            parameters: [
+                new StringParameter(
+                    'name',
+                    'The name to greet (default: "World")',
+                    required: false,
+                ),
+            ],
+            callback: function (array $input): ToolResult {
+                $name = trim((string) ($input['name'] ?? 'World'));
+
+                if ($name === '') {
+                    $name = 'World';
+                }
+
+                return ToolResult::success("Hello, {$name}! 👋");
+            },
+        );
+    }
+
+    /**
+     * Build the hello_time tool.
+     *
+     * Demonstrates using a parameter with a default value and
+     * returning dynamic data (current time).
+     */
+    private function helloTimeTool(): ToolInterface
+    {
+        return new Tool(
+            name: 'hello_time',
+            description: 'Return the current server date and time.',
+            parameters: [
+                new StringParameter(
+                    'format',
+                    'PHP date format string (default: "c" for ISO 8601). Examples: "Y-m-d", "H:i:s", "l, F j, Y"',
+                    required: false,
+                ),
+            ],
+            callback: function (array $input): ToolResult {
+                $format = trim((string) ($input['format'] ?? 'c'));
+
+                if ($format === '') {
+                    $format = 'c';
+                }
+
+                $time = date($format);
+
+                return ToolResult::success("Current time: {$time}");
+            },
+        );
+    }
+}
+```

@@ -1,0 +1,44 @@
+---
+title: "Getting Started"
+---
+
+# Getting Started
+
+The installer detects your OS, installs PHP 8.4+ and required extensions if missing, downloads the latest Coqui release, verifies the SHA-256 checksum, and adds `coqui` to your PATH — no Git or Composer required.
+
+### Linux / macOS / WSL2
+
+```bash
+curl -fsSL https://coquibot.org/install | bash
+```
+
+### Windows (WSL2 Bootstrap)
+
+Run the Windows bootstrap in PowerShell. It checks for WSL2, offers to install Ubuntu when needed, and then runs the standard Coqui installer inside WSL.
+
+```powershell
+irm https://raw.githubusercontent.com/AgentCoqui/coqui-installer/main/install.ps1 | iex
+```
+
+### Update
+
+Re-run the same install command. The installer detects an existing installation and updates it automatically.
+
+### Inspect before running
+
+- Linux / macOS / WSL2: [install.sh](https://raw.githubusercontent.com/AgentCoqui/coqui-installer/main/install.sh)
+- Windows bootstrap: [install.ps1](https://raw.githubusercontent.com/AgentCoqui/coqui-installer/main/install.ps1)
+
+### Development Install
+
+Clone the repository and install dependencies manually. Requires PHP 8.4+, Composer 2.x, and Git.
+
+```bash
+git clone https://github.com/AgentCoqui/coqui.git
+cd coqui
+composer install
+```
+
+Alternatively, use the `--dev` flag with the installer to clone and set up in one step:
+
+```bash

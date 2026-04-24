@@ -1,0 +1,33 @@
+{
+  "name": "docs-coquibot-org",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Coqui Bot documentation site powered by Nextra",
+  "scripts": {
+    "sync-docs": "node scripts/sync-docs.mjs",
+    "sync-docs:watch": "node scripts/sync-docs.mjs --watch",
+    "predev": "node scripts/sync-docs.mjs",
+    "prebuild": "node scripts/sync-docs.mjs",
+    "dev": "node scripts/dev-docs.mjs",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "author": "Carmelo Santana",
+  "license": "MIT",
+  "packageManager": "pnpm@10.30.3",
+  "dependencies": {
+    "@theguild/remark-mermaid": "^0.3.0",
+    "next": "^16.2.1",
+    "nextra": "^4.6.1",
+    "nextra-theme-docs": "^4.6.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/mdx": "^2.0.13",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "typescript": "^5.9.3"
+  }
+}

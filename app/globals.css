@@ -1,0 +1,114 @@
+/*
+ * Coqui Docs — Global Styles
+ *
+ * Overrides Nextra theme defaults with Coqui's OKLCH design tokens.
+ * Matches coquibot-org, coquibot-saas, and coqui-space visual identity.
+ * Dark mode is the default experience.
+ */
+
+/* ──────────────────── Font binding ──────────────────── */
+
+:root {
+  --font-geist-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: 'Geist Mono', ui-monospace, monospace;
+}
+
+/* ──────────────────── Nextra color overrides ──────────────────── */
+
+/*
+ * Nextra 4 uses CSS custom properties for theming.
+ * We override them with the Coqui OKLCH palette.
+ *
+ * Light mode: --primary = Coqui Green (oklch 0.55 0.15 145)
+ * Dark mode:  --primary = Bright Lime (oklch 0.88 0.16 120) — roles flip
+ */
+
+:root {
+  /* Nextra primary color — converted to HSL for Nextra compatibility */
+  /* Coqui Green: oklch(0.55 0.15 145) ≈ hsl(145, 50%, 35%) */
+  --nextra-primary-hue: 145deg;
+  --nextra-primary-saturation: 50%;
+  --nextra-primary-lightness: 35%;
+}
+
+.dark {
+  /* Bright Lime: oklch(0.88 0.16 120) ≈ hsl(90, 65%, 55%) */
+  --nextra-primary-hue: 90deg;
+  --nextra-primary-saturation: 65%;
+  --nextra-primary-lightness: 55%;
+}
+
+/* ──────────────────── Background & surface ──────────────────── */
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --border: oklch(0.922 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --primary: oklch(0.55 0.15 145);
+  --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.88 0.16 120);
+  --accent-foreground: oklch(0.145 0 0);
+  --ring: oklch(0.55 0.15 145);
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: oklch(0.1 0.005 150);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.14 0.005 150);
+  --card-foreground: oklch(0.985 0 0);
+  --border: oklch(0.22 0.005 150);
+  --muted: oklch(0.2 0.005 150);
+  --muted-foreground: oklch(0.708 0 0);
+  --primary: oklch(0.88 0.16 120);
+  --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.55 0.15 145);
+  --accent-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.88 0.16 120);
+}
+
+/* ──────────────────── Nextra surface overrides ──────────────────── */
+
+:root {
+  /* Page background */
+  --nextra-bg: 255, 255, 255;
+
+  /* Sidebar and navbar surfaces */
+  --nextra-card-bg: 255, 255, 255;
+}
+
+html.dark {
+  /* Deep Slate background: oklch(0.1 0.005 150) ≈ rgb(19, 24, 22) */
+  --nextra-bg: 19, 24, 22;
+
+  /* Card surfaces: oklch(0.14 0.005 150) ≈ rgb(29, 35, 33) */
+  --nextra-card-bg: 29, 35, 33;
+}
+
+/* ──────────────────── Typography ──────────────────── */
+
+body {
+  font-family: var(--font-geist-sans);
+}
+
+code, pre, kbd, samp {
+  font-family: var(--font-geist-mono);
+}
+
+/* ──────────────────── Nextra component refinements ──────────────────── */
+
+/* Sidebar active link uses Coqui Green / Bright Lime via Nextra primary */
+
+/* Code block styling to match Coqui sites */
+article pre {
+  border-radius: var(--radius);
+}
+
+/* Callout styling */
+.nextra-callout {
+  border-radius: var(--radius);
+}

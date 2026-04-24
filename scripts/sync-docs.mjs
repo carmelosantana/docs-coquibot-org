@@ -497,6 +497,51 @@ function processMarkdown(content, sourcePath, options = {}) {
   return processed.trim()
 }
 
+function extractTopLevelSection(content, headingPattern) {
+  const lines = content.split('\n')
+  const headingRegex = new RegExp(`^## (?:${headingPattern})\\s*$`)
+  let insideFence = false
+  let startIndex = -1
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]
+    const trimmed = line.trim()
+
+    if (/^`{3,}/.test(trimmed)) {
+      insideFence = !insideFence
+    }
+
+    if (!insideFence && headingRegex.test(line)) {
+      startIndex = index + 1
+      break
+    }
+  }
+
+  if (startIndex === -1) {
+    return null
+  }
+
+  const sectionLines = []
+  for (let index = startIndex; index < lines.length; index++) {
+    const line = lines[index]
+    const trimmed = line.trim()
+
+    if (/^`{3,}/.test(trimmed)) {
+      insideFence = !insideFence
+      sectionLines.push(line)
+      continue
+    }
+
+    if (!insideFence && /^(##|#)\s+/.test(line)) {
+      break
+    }
+
+    sectionLines.push(line)
+  }
+
+  return sectionLines.join('\n').trim()
+}
+
 function buildFrontmatter(route) {
   const lines = ['---', `title: ${yamlString(route.title)}`]
   if (route.description) {
@@ -652,9 +697,9 @@ function syncLandingPages() {
   fs.writeFileSync(path.join(contentDir, 'index.mdx'), indexContent, 'utf8')
   console.log('  ✓ README.md -> index.mdx')
 
-  const installMatch = readmeContent.match(/## (?:Quick Start|Installation|Getting Started)([\s\S]*?)(?=\n## |\n# |$)/)
-  const gettingStarted = installMatch
-    ? installMatch[1].trim()
+  const gettingStartedSection = extractTopLevelSection(readmeContent, 'Quick Start|Installation|Getting Started')
+  const gettingStarted = gettingStartedSection
+    ? gettingStartedSection
     : 'See the [Introduction](/) for installation and quick start instructions.'
 
   const gettingStartedContent = `---\ntitle: ${yamlString('Getting Started')}\n---\n\n# Getting Started\n\n${gettingStarted}\n`

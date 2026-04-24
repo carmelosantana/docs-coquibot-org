@@ -1,9 +1,10 @@
 import { Footer, LastUpdated, Layout, Navbar } from 'nextra-theme-docs'
-import { Head, Search } from 'nextra/components'
+import { Head } from 'nextra/components'
 import { getPageMap } from 'nextra/page-map'
 import { Geist, Geist_Mono } from 'next/font/google'
-import Script from 'next/script'
 import type { Metadata, Viewport } from 'next'
+import { DocsSearch } from '@/components/docs-search'
+import { UmamiAnalytics } from '@/components/umami-analytics'
 import 'nextra-theme-docs/style.css'
 import './globals.css'
 
@@ -184,21 +185,14 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
-          <Script
-            defer
-            src={process.env.NEXT_PUBLIC_UMAMI_URL || 'https://cloud.umami.is/script.js'}
-            data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
-            strategy="afterInteractive"
-          />
-        )}
+        <UmamiAnalytics />
         <Layout
           navbar={navbar}
           pageMap={await getPageMap()}
           docsRepositoryBase="https://github.com/AgentCoqui/coqui/tree/main/docs"
           footer={footer}
           editLink="Edit this page on GitHub"
-          search={<Search placeholder="Search Coqui docs..." />}
+          search={<DocsSearch placeholder="Search Coqui docs..." />}
           darkMode={true}
           lastUpdated={<LastUpdated locale="en-US">Last updated</LastUpdated>}
           feedback={{

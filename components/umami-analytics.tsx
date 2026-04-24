@@ -47,7 +47,7 @@ function getCodeLanguage(codeElement: Element | null): string {
 function classifySnippet(snippet: string): string {
   const normalizedSnippet = snippet.toLowerCase()
 
-  if (normalizedSnippet.includes('https://coquibot.org/install | bash')) {
+  if (normalizedSnippet.includes('https://agentcoqui.com/install | bash')) {
     return 'installer-shell'
   }
 
@@ -125,7 +125,7 @@ function trackSearchResultClick(anchor: HTMLAnchorElement): void {
 }
 
 function getInstallResource(href: string): string | null {
-  if (href.includes('coquibot.org/install')) {
+  if (href.includes('agentcoqui.com/install')) {
     return 'installer-redirect'
   }
 

@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   description:
     'Coqui is a lightweight, hackable agent runtime that adapts to how you work. Automate workflows, persist memory across sessions, schedule recurring tasks, and extend its abilities at runtime.',
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_BASE_URL || 'https://docs.coquibot.org'
+    process.env.NEXT_PUBLIC_BASE_URL || 'https://docs.agentcoqui.com'
   ),
   alternates: {
     canonical: '/',
@@ -104,7 +104,7 @@ const footer = (
     <div className="coqui-footer">
       <div className="coqui-footer__top">
         <a
-          href="https://coquibot.org"
+          href="https://agentcoqui.com"
           target="_blank"
           rel="noopener noreferrer"
           className="coqui-footer__brand"
@@ -130,7 +130,7 @@ const footer = (
             Features
           </a>
           <a
-            href="https://coquibot.org"
+            href="https://agentcoqui.com"
             target="_blank"
             rel="noopener noreferrer"
             className="coqui-shell-link"

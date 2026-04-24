@@ -6,7 +6,7 @@ export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
 export default async function OGImage() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://docs.coquibot.org'
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://docs.agentcoqui.com'
   const logoData = await fetch(new URL('/coqui-bot-512.png', baseUrl)).then(
     response => response.arrayBuffer()
   )

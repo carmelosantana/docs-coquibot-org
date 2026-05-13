@@ -169,6 +169,11 @@ const footer = (
   </Footer>
 )
 
+const search =
+  process.env.NODE_ENV === 'development'
+    ? null
+    : <DocsSearch placeholder="Search Coqui docs..." />
+
 export default async function RootLayout({
   children,
 }: {
@@ -192,7 +197,7 @@ export default async function RootLayout({
           docsRepositoryBase="https://github.com/AgentCoqui/coqui/tree/main/docs"
           footer={footer}
           editLink="Edit this page on GitHub"
-          search={<DocsSearch placeholder="Search Coqui docs..." />}
+          search={search}
           darkMode={true}
           lastUpdated={<LastUpdated locale="en-US">Last updated</LastUpdated>}
           feedback={{

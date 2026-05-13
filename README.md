@@ -1,1 +1,1 @@
-# docs-coquibot-org
+# docs.agentcoqui.com

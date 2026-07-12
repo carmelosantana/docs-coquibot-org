@@ -45,6 +45,9 @@ All REPL commands start with `/`. Type `/help` during a session to see a quick r
 | `/group replace ‹member1,member2,...› [--rounds=N]` | Replace the current group membership, optionally updating the round cap |
 | `/group rounds ‹n›` | Update the maximum per-turn coordination rounds for the current group session |
 | `/model [role]` | Show model configuration (optionally for a specific role) |
+| `/thinking` | Show thinking capability and current reasoning effort for the active model |
+| `/thinking off\|low\|medium\|high` | Set reasoning effort for the active model (`off` disables thinking on thinking-capable Ollama models); persists to `openclaw.json` and applies on the next message |
+| `/thinking clear` | Remove the reasoning-effort override and restore the model default |
 
 Group sessions stay orchestrator-managed and clear any single active profile scope. Starting or reshaping a group session reuses the same membership validation and duplicate-composition rules as the HTTP API.
 
@@ -99,7 +102,7 @@ When the active session is group-enabled, the REPL prompt shows the current memb
 | `/image help` | Show the same standardized image toolkit command reference |
 | `/image generate ‹prompt›` | Generate an image through the installed image toolkit and save it into the workspace image library |
 | `/image preview ‹path›` | Render an existing workspace image as a low-fidelity terminal preview |
-| `/image list` | Browse saved image records; interactive REPL opens a fullscreen browser and `--profile`, `--vendor`, `--category`, `--tag`, and `--sort` narrow the result set |
+| `/image list` | Browse saved image records; `--profile`, `--vendor`, `--category`, `--tag`, and `--sort` narrow the result set |
 | `/image search ‹query›` | Search saved image records by prompt, tags, owner, profile, model, vendor, or path |
 | `/image get ‹record-id›` | Show one saved image record |
 | `/image tag ‹record-id› ‹tag1,tag2›` | Update tags and optional category for a saved image record |
@@ -115,6 +118,8 @@ When the resolved model is an Ollama image model that is not installed locally, 
 In the interactive REPL, Coqui now auto-renders one low-fidelity ANSI image preview per turn when a successful tool result returns a workspace-local image path, such as a `browser_capture` screenshot or an image-toolkit output. Streamed assistant markdown also previews one workspace-local markdown image per response. This v1 behavior is intentionally narrow: local workspace files only, first preview only, and graceful fallback when `ext-gd` is unavailable.
 
 ### MCP
+
+The MCP client engine, per-server tool exposure, and HTTP API ship in Coqui core by default — MCP servers work out of the box. The `/mcp` REPL command below is provided by the optional [`coquibot/coqui-toolkit-mcp-client`](https://github.com/AgentCoqui/coqui-toolkit-mcp-client) package as a self-registering command (see [docs/TOOLKIT-EXTENSIBILITY.md](/development/toolkit-extensibility)); it is not present unless that package is installed. Without it, manage MCP servers over the HTTP API (see [docs/API.md](/guides/api)) or by editing `.workspace/mcp.json` directly.
 
 | Command | Description |
 | --- | --- |
@@ -149,17 +154,7 @@ MCP config changes are re-read on future agent turns without a full Coqui restar
 | `/task ‹id›` | Show a background task's status and recent events |
 | `/task-cancel ‹id›` | Cancel a pending or running background task |
 
-### Planning & Todos
-
-| Command | Description |
-| --- | --- |
-| `/todos [status]` | Show session todos with progress stats. Filter by `pending`, `in_progress`, `completed`, or `cancelled` |
-| `/todos delete ‹id\|all›` | Delete one todo by ID prefix, or all todos in the current session |
-| `/todos complete ‹id\|all›` | Mark one todo, or all actionable todos, as completed |
-| `/todos cancel ‹id›` | Mark a todo as cancelled |
-| `/todos clear` | Remove completed and cancelled todos |
-
-### Projects & Sprints
+### Projects
 
 | Command | Description |
 | --- | --- |
@@ -169,7 +164,6 @@ MCP config changes are re-read on future agent turns without a full Coqui restar
 | `/projects archived` | List only archived projects |
 | `/projects ‹slug\|id›` | Switch the active project for the current session |
 | `/projects clear` | Clear the active project for the current session |
-| `/sprints [project_slug]` | List sprints for active projects, or one project when a slug is provided |
 
 ### Scheduling & Automation
 
@@ -196,32 +190,12 @@ Inspection commands in this section are user-facing. Mutation and lifecycle cont
 | `/loops pause ‹id\|all›` | Advanced automation control: pause running loop(s) |
 | `/loops resume ‹id\|all›` | Advanced automation control: resume paused loop(s) |
 | `/loops stop ‹id\|all›` | Advanced automation control: stop/cancel loop(s) |
-| `/channels` | List configured channels with runtime health and heartbeat state |
-| `/channels drivers` | Show registered channel drivers and declared capabilities |
-| `/channels status ‹name\|id›` | Show one channel's configuration and runtime state |
-| `/channels health ‹name\|id›` | Show compact health output for one channel |
-| `/channels add ‹driver› ‹name› [driver-args...]` | Advanced operator control: create a channel instance in `openclaw.json` (for Signal: optional account number as the third argument) |
-| `/channels set ‹name\|id› ‹field› ‹value›` | Advanced operator control: update `driver`, `displayName`, `defaultProfile`, `boundSessionId`, `enabled`, `settings`, `allowedScopes`, or `security` |
-| `/channels enable ‹name\|id›` | Advanced operator control: enable a channel instance |
-| `/channels disable ‹name\|id›` | Advanced operator control: disable a channel instance |
-| `/channels delete ‹name\|id›` | Advanced operator control: remove a channel instance |
-| `/channels links ‹name\|id›` | Show identity links for one channel |
-| `/channels link ‹name\|id› ‹remote-user-key› ‹profile›` | Create an identity link for a remote user |
-| `/channels unlink ‹name\|id› ‹link-id›` | Remove an identity link |
-| `/channels deliveries ‹name\|id›` | Show recent outbound delivery records for one channel |
-| `/webhooks` | List webhook subscriptions with status and trigger counts for monitoring |
-| `/webhooks status ‹name\|id›` | Show webhook configuration, secret mask, and trigger state |
-| `/webhooks deliveries ‹name\|id›` | Show recent delivery logs for one webhook |
-| `/webhooks enable ‹name\|id›` | Advanced operator control: enable a webhook subscription |
-| `/webhooks disable ‹name\|id›` | Advanced operator control: disable a webhook subscription |
-| `/webhooks delete ‹name\|id›` | Advanced operator control: delete a webhook subscription |
-| `/webhooks rotate ‹name\|id›` | Advanced operator control: rotate a webhook signing secret |
-| `/evaluations [grade]` | List session evaluation reports, optionally filtered by grade |
-| `/quality` | Show quality automation schedules and learner follow-up state |
 | `/hints` | Toggle command hints in the input area |
 | `/multiline` | Toggle multiline compose mode (double-Enter submits, bracketed paste auto-detected) |
 | `/multiline on` | Enable multiline compose mode |
 | `/multiline off` | Disable multiline compose mode |
+
+> The REPL `/loops` view is text-only: a status/progress table and per-loop `/loops status ‹id›` snapshots. Rich, live loop monitoring lives on the HTTP API (see [docs/API.md](/guides/api)); the REPL no longer opens a full-screen loop dashboard.
 
 ### Context Management
 
@@ -241,7 +215,7 @@ Use the toolkit-owned `/mods` command for discovery and install flows, and the `
 
 ## CLI Commands
 
-Coqui is invoked via `coqui`. By default, `coqui` starts the launcher-managed app: REPL in the foreground plus the API in the background. `coqui-launcher` is the explicit equivalent. Advanced console commands such as `doctor`, `benchmark`, `task:run`, and `turn:run` remain available when explicitly requested.
+Coqui is invoked via `coqui`. By default, `coqui` starts the launcher-managed app: REPL in the foreground plus the API in the background. Advanced console commands such as `doctor`, `benchmark`, `task:run`, and `turn:run` remain available when explicitly requested.
 
 ### `coqui`
 
@@ -372,18 +346,18 @@ coqui benchmark --json
 
 ## Launcher
 
-`coqui-launcher` is the explicit launcher name for the same public entrypoint surface exposed through `coqui`.
+`coqui` is the unified entrypoint and launcher. All service lifecycle operations go through it.
 
 ### Modes
 
 ```bash
-coqui-launcher                   # Start REPL (foreground) + API (background)
-coqui-launcher --repl-only       # Start REPL only, no API
-coqui-launcher --api-only        # Start API only (foreground)
-coqui-launcher --wizard          # Run setup wizard directly
-coqui-launcher stop              # Stop all background services
-coqui-launcher stop-api          # Stop the background API only
-coqui-launcher status            # Show which services are running
+coqui                   # Start REPL (foreground) + API (background)
+coqui --repl-only       # Start REPL only, no API
+coqui --api-only        # Start API only (foreground)
+coqui --wizard          # Run setup wizard directly
+coqui stop              # Stop all background services
+coqui stop-api          # Stop the background API only
+coqui status            # Show which services are running
 ```
 
 ### Launcher Flags

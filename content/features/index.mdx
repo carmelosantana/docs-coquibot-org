@@ -32,7 +32,7 @@ Coqui is not limited to coding workflows — any use case that benefits from LLM
             "roles": {
                 "coder": "anthropic/claude-sonnet-4-20250514",
                 "explorer": "ollama/qwen3:8b",
-                "evaluator": "ollama/gemma3:4b"
+                "reviewer": "ollama/gemma3:4b"
             }
         }
     }
@@ -122,6 +122,17 @@ For use cases that require preserving large identity scaffolds or long-running d
 - Browse available packages at [agentcoqui.com](https://agentcoqui.com)
 - See [TOOLKITS.md](/guides/extending) for creating your own.
 
+## 🔌 MCP Support
+
+**What it does:** Connects Coqui to external Model Context Protocol (MCP) servers so their tools become native agent capabilities. The client engine, stdio transport, per-server tool exposure, and full HTTP API for managing servers ship in Coqui core by default — MCP works out of the box, and internal toolkits/functions can use it natively via `CoquiBot\Coqui\Mcp\McpRuntime`.
+
+**How it helps:** Adopt any MCP server (GitHub, filesystem, databases, and more) without waiting on a Coqui-specific integration. Per-server tools are exposed as ordinary candidate toolkits and participate in Coqui's normal budget-gated loading — deferred by default, promotable to eager per server — so connecting a large MCP server doesn't blow the context budget.
+
+**How to use it:**
+- Manage servers over the HTTP API (`/api/v1/mcp/*`, see [API.md](/guides/api)) or by editing `.workspace/mcp.json` directly — no additional package required.
+- Install the optional [`coquibot/coqui-toolkit-mcp-client`](https://github.com/AgentCoqui/coqui-toolkit-mcp-client) package for the interactive management UX: the `mcp` agent tool, the `/mcp` REPL command, and browser-based OAuth for servers that need it. Without the toolkit, every management action works except OAuth.
+- See [TOOLKITS.md](https://github.com/AgentCoqui/coqui/blob/main/docs/TOOLKITS.md#mcp-toolkits) for the full core/optional split and [CONFIGURATION.md](/guides/configuration) for `mcp.json` and stdio command policy details.
+
 ## 🔐 Credential Management
 
 **What it does:** Declarative credential management with hot-reload. Toolkits declare required credentials in `composer.json`, and `CredentialGuardTool` blocks execution when keys are missing — providing exact instructions for what to set.
@@ -146,48 +157,24 @@ For use cases that require preserving large identity scaffolds or long-running d
 
 **What it does:** Cron-style scheduling with circuit breakers. Create recurring or one-shot tasks that execute as background tasks inside the ReactPHP event loop. Supports standard cron expressions and the special `@once` expression.
 
-**How it helps:** Automate recurring work — nightly evaluations, daily learning runs, periodic health checks — without external schedulers.
+**How it helps:** Automate recurring work — nightly summaries, daily reports, periodic health checks — without external schedulers.
 
 **How to use it:**
-- The agent calls `schedule_create(name: "nightly-eval", expression: "0 2 * * *", prompt: "...", role: "evaluator")`.
+- The agent calls `schedule_create(name: "nightly-report", expression: "0 2 * * *", prompt: "...", role: "coder")`.
 - Manage via REPL: `/schedules` to list all schedules.
 - Inspect via API: `GET /api/v1/schedules`.
 - Failed schedules are automatically disabled after 3 consecutive failures (circuit breaker). Re-enable after investigating.
 
-## 🔗 Webhooks
-
-**What it does:** Receive incoming webhooks from external services that trigger agent background tasks. Supports GitHub, Slack, and generic HMAC signature verification with delivery logging and automatic purging.
-
-**How it helps:** React to external events automatically — review a PR when it's opened, process a Slack message, or respond to CI pipeline results.
-
-**How to use it:**
-- Create a subscription: the agent calls `webhook_create(name: "github-pr", source: "github", prompt_template: "Review this PR: {{payload}}")`.
-- Configure your external service to POST to `/api/v1/webhooks/incoming/{name}` with the signing secret.
-- View deliveries: `/webhooks` in the REPL or `GET /api/v1/webhooks/{id}/deliveries` via API.
-
-## 📨 Channels
-
-**What it does:** Channels give Coqui first-class external messaging surfaces. The API server can receive inbound messages from supported transports, route them through a normal Coqui session, and send the assistant's reply back out through the same channel.
-
-**How it helps:** Coqui no longer has to live only inside the REPL or an API client. You can expose a real messaging endpoint, keep one persistent Coqui session per remote conversation, and audit inbound events plus outbound deliveries in SQLite.
-
-**How to use it:**
-- Configure a channel instance in `openclaw.json` under `channels.instances`.
-- Start Coqui with `coqui` or `coqui --api-only`.
-- Link trusted remote users to profiles with `/channels link ‹channel› ‹remote-user-key› ‹profile›`.
-- Inspect runtime state with `/channels`, `/channels status`, and `/channels deliveries`.
-- See [CHANNELS.md](/features/channels) for the full Signal setup walkthrough, including `signal-cli` install, account attachment, manual transport tests, and Coqui end-to-end testing.
-
 ## 🏗️ Background Tasks
 
-**What it does:** Run long-running work in isolated background processes. Two modes: `start_background_task` spawns a full LLM agent loop, `start_background_tool` executes a single tool directly (zero LLM tokens).
+**What it does:** The execution substrate that runs a unit of agent work in an isolated child process while the API server stays responsive. It is not an agent-facing tool — it is the shared engine that **loops, schedules, and the `/tasks` HTTP API** run on.
 
-**How it helps:** Queue large refactors, research tasks, or deployments without blocking the REPL or API. Multi-task by running several background agents concurrently.
+**How it helps:** Long-running work never blocks the REPL or API. Several tasks run concurrently, each in its own process, with cooperative cancellation and crash recovery.
 
 **How to use it:**
-- Agent tasks: `start_background_task(task: "Refactor auth module", role: "coder")`
-- Direct tool execution: `start_background_tool(tool_name: "exec", arguments: {...}, title: "Run tests")`
-- Monitor: `/tasks` in the REPL, `task_status(id)` from the agent, or SSE streaming via API.
+- Agent async work: `loop_start(definition: "goal-driven", goal: "Refactor auth module")` — each loop iteration executes as a background task.
+- Programmatic: `POST /api/v1/tasks` for external integrations; schedules create tasks automatically.
+- Monitor: `/tasks` in the REPL or SSE streaming via the API.
 - See [BACKGROUND-TASKS.md](/guides/background-tasks) for details.
 
 ## 🔁 Loops
@@ -214,27 +201,6 @@ For use cases that require preserving large identity scaffolds or long-running d
 
 In the interactive REPL, successful screenshot-producing tools can now render one automatic ANSI block preview per turn when they return a workspace-local image path. Streamed assistant markdown can also render one workspace-local markdown image preview per response. The current scope is intentionally local-first: no remote image fetching, no bulk preview dumps, and graceful fallback when `ext-gd` is unavailable.
 
-## 📊 Session Evaluation
-
-**What it does:** An autonomous evaluator agent reviews completed sessions and grades them on three criteria: completion (40%), hallucination absence (40%), and tool efficiency (20%). Produces structured reports with A-F grades.
-
-**How it helps:** Track agent quality over time. Identify patterns of failure, wasted tool calls, or hallucinated APIs. The evaluation data feeds into the self-learning loop.
-
-**How to use it:**
-- Run on-demand: `spawn_agent(role: "evaluator")`.
-- Run on a schedule: create a nightly evaluation schedule.
-- View reports: `/evaluations` in the REPL or `GET /api/v1/sessions/{id}/evaluation` via API.
-
-## 📚 Self-Learning Loop
-
-**What it does:** A `learner` role analyzes sessions with poor evaluation grades (C, D, F) and synthesizes corrective Skills — structured SOPs that prevent the system from repeating the same mistakes.
-
-**How it helps:** Coqui improves autonomously. Each failure becomes a documented procedure that future agents follow, creating a continuous improvement cycle: evaluate → learn → improve.
-
-**How to use it:**
-- Schedule the learner: `schedule_create(name: "daily-learning", expression: "0 3 * * *", prompt: "Analyze recent poor evaluations", role: "learner")`.
-- The learner reads evaluation reports, identifies failure patterns (hallucination, incomplete work, tool inefficiency), and creates or updates Skills via `SkillToolkit`.
-
 ## 🧠 Cognitive Flexibility
 
 **What it does:** Coqui supports both analytical and intuitive cognitive modes. Two creative roles — **muse** (divergent brainstorming) and **philosopher** (reflective synthesis) — complement the analytical roles. Sketch and hypothesis artifact types support rough ideation and testable ideas. Two new loop definitions — **diverge-converge** and **reflection** — encode whole-brain workflows.
@@ -254,27 +220,24 @@ In the interactive REPL, successful screenshot-producing tools can now render on
 
 **What it does:** Versioned artifacts that flow through a `draft` → `review` → `final` lifecycle. The `plan` role creates detailed implementation plans as artifacts, which are then handed off to the `coder` role for execution. Types include `code`, `document`, `config`, `plan`, `data`, `sketch` (rough ideation), `hypothesis` (testable ideas), and `other`.
 
-**How it helps:** Complex work gets a structured plan before anyone writes code. Plans are versioned, reviewable, and shareable between agents within a session. Sketch and hypothesis artifacts support creative exploration without lifecycle pressure — they don't auto-generate todos and can stay in draft indefinitely.
+**How it helps:** Complex work gets a structured plan before anyone writes code. Plans are versioned, reviewable, and shareable between agents within a session. Sketch and hypothesis artifacts support creative exploration without lifecycle pressure — they can stay in draft indefinitely.
 
 **How to use it:**
 - Switch to the plan role: `/role plan` and describe what you need.
 - The plan agent creates an artifact, iterates on it, and stages it to `final`.
-- When a plan artifact reaches `final`, todos are automatically extracted.
 - The coder reads the plan via `artifact_get` and follows it step by step.
 - See [ARTIFACTS.md](/features/artifacts) for versioning, persistence, and cross-agent sharing.
 
-## ✅ Todo System
+## 📁 Projects
 
-**What it does:** Session-scoped task tracking with support for subtasks, priorities, bulk operations, and artifact linking. Todos are auto-generated from finalized plan artifacts and visible to all agents in a session.
+**What it does:** Lean project working scopes. A project is a named scope backed by its own workspace directory (`projects/‹slug›-‹id›/`), giving related work a stable home without heavyweight planning machinery.
 
-**How it helps:** Agents track their progress through complex multi-step work. After conversation summarization, agents can check `todo_list` to recover their place.
+**How it helps:** Keeps multi-step work organized under a clear scope and working directory, and lets agents switch context between scopes cleanly.
 
 **How to use it:**
-- View todos: `/todos` in the REPL.
-- The agent manages todos via `todo_add`, `todo_update`, `todo_complete`, and `todo_delete`, with batch and session-wide modes exposed through parameters.
-- Auto-generated from plans: when `artifact_stage(stage: "final")` is called, `PlanTodoGenerator` extracts implementation steps automatically.
-- See [TODOS.md](/features/todos) for bulk operations, role permissions, and progress tracking.
-- See [DATA_FLOW.md](/features/data-flow) for how Projects, Sprints, Artifacts, Todos, and Loops interconnect.
+- The agent manages projects via `project_create`, `project_list`, `project_get`, `project_update`, `project_delete`, and `project_switch`.
+- List or switch the active project: `/projects` in the REPL.
+- See [PROJECTS.md](/features/projects) for the working-scope model.
 
 ## 🔧 Toolkit Visibility
 
@@ -292,13 +255,13 @@ In the interactive REPL, successful screenshot-producing tools can now render on
 
 **What it does:** Declarative `toolkits:` field in role frontmatter controls which toolkits and tools are available to each role. Uses allow/deny pattern syntax evaluated left-to-right.
 
-**How it helps:** Keeps each role focused. The `plan` role can't access shell commands, the `evaluator` only sees evaluation tools, and the `explorer` can't spawn sub-agents.
+**How it helps:** Keeps each role focused. The `plan` role can't access shell commands, the `reviewer` runs read-only, and the `explorer` can't spawn sub-agents.
 
 **How to use it:** Set the `toolkits` field in your role's `.md` file. See [ROLES.md](/features/roles) for the pattern syntax and examples.
 
 ## 🔄 Conversation Summarization
 
-**What it does:** Automatic and on-demand conversation compression. When token usage exceeds a configurable threshold (default 64%), older messages are summarized via LLM while preserving recent turns and workflow state (todos, artifacts).
+**What it does:** Automatic and on-demand conversation compression. When token usage exceeds a configurable threshold (default 64%), older messages are summarized via LLM while preserving recent turns and workflow state (artifacts).
 
 **How it helps:** Long sessions never hit token limits. The agent maintains awareness of earlier work through structured summaries while staying within budget.
 
@@ -338,14 +301,14 @@ In the interactive REPL, successful screenshot-producing tools can now render on
 
 ## 🌐 HTTP API
 
-**What it does:** Fully asynchronous REST and SSE server powered by ReactPHP. Supports session management, message streaming, background tasks, scheduling, webhooks, toolkit management, and more.
+**What it does:** Fully asynchronous REST and SSE server powered by ReactPHP. Supports session management, message streaming, background tasks, scheduling, toolkit management, and more.
 
 **How it helps:** Build web dashboards, mobile apps, or headless automation that uses the same AI engine as the CLI.
 
 **How to use it:**
 - Start the full app: `coqui`
 - API only: `coqui --api-only` (default `127.0.0.1:3300`)
-- Explicit launcher name: `coqui-launcher` or `coqui-launcher --api-only`
+- See [docs/COMMANDS.md](/guides/commands) for the full launcher flag reference.
 - See [API.md](/guides/api) for the full endpoint reference.
 
 ## 💾 Persistent Sessions
@@ -475,7 +438,6 @@ Multiple Coqui features work together to minimize token consumption and API cost
 | **Utility model** | [Multi-Model Orchestration](#multi-model-orchestration) | Titles, summaries, and internal tasks use a fast, cheap model |
 | **Progressive skills** | [Skills System](#skills-system) | Skills show metadata only — full content is fetched on demand |
 | **Budget pruning** | [Context Window Management](#context-window-management) | `SummarizePruningStrategy` compresses before dropping messages |
-| **Background tools** | [Background Tasks](#background-tasks) | `start_background_tool` executes directly with zero LLM tokens |
 
 ## See Also
 

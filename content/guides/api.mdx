@@ -5,15 +5,19 @@ description: "Complete HTTP API reference for the Coqui server."
 
 # Coqui HTTP API
 
-> **REPL-first**: The terminal REPL is Coqui's primary interface. The API provides the stable application-facing execution and inspection surface. User-facing read and monitoring workflows are documented here. Most loop, schedule, and config-editing control flows remain REPL-first or tool-driven, while launcher-managed API restarts and channel CRUD are now exposed over HTTP with explicit restart-state metadata.
+> **REPL-first**: The terminal REPL is Coqui's primary interface. The API provides the stable application-facing execution and inspection surface. User-facing read and monitoring workflows are documented here. Most loop, schedule, and config-editing control flows remain REPL-first or tool-driven, while launcher-managed API restarts are now exposed over HTTP with explicit restart-state metadata.
 
 The Coqui HTTP API provides programmatic access to Coqui's AI agent capabilities. It enables headless operation, remote session management, and real-time streaming of agent responses via Server-Sent Events (SSE).
 
 The API is built on ReactPHP and runs as a long-lived PHP process. It shares the same core engine as the terminal REPL but without any terminal I/O dependency.
 
+## Changelog
+
+- Session objects no longer include `channel`/`channel_bound`; `session_origin` is never `channel`.
+
 ## Starting the Server
 
-Use the launcher-managed entrypoint by default. The API is a required runtime for background tasks, channels, schedules, and other long-lived features.
+Use the launcher-managed entrypoint by default. The API is a required runtime for background tasks, schedules, and other long-lived features.
 
 ```bash
 # Recommended default: full app (REPL + API)
@@ -35,7 +39,7 @@ coqui --api-only --config /path/to/openclaw.json
 coqui --api-only --cors-origin "http://localhost:3000,https://app.example.com"
 
 # Explicit launcher name
-./bin/coqui-launcher --api-only --host 0.0.0.0
+./bin/coqui --api-only --host 0.0.0.0
 
 # Via environment variable
 COQUI_API_HOST=0.0.0.0 coqui
@@ -205,7 +209,7 @@ Use this document as the canonical HTTP API reference. The current API is best s
 
 1. Create or resume a session.
 2. Send prompts over SSE for live progress, or use `?stream=false` for a blocking JSON response.
-3. Inspect session state, turns, tasks, artifacts, todos, schedules, loops, and server status through read-oriented endpoints.
+3. Inspect session state, turns, tasks, artifacts, projects, schedules, loops, and server status through read-oriented endpoints.
 
 ### Conversation Model
 
@@ -276,14 +280,6 @@ Liveness check. Does **not** require authentication.
     "managed_by_launcher": true,
     "pid": 21093,
     "started_at": "2026-04-22T20:59:23Z"
-  },
-  "channels": {
-    "total": 1,
-    "enabled": 1,
-    "ready": 1,
-    "errors": 0,
-    "active_runtimes": 1,
-    "registered_drivers": 3
   }
 }
 ```
@@ -302,15 +298,13 @@ Session lifecycle fields have distinct meanings:
 - `archived` is the discovery state. Archived sessions are hidden from active listings by default but remain fully inspectable through the read endpoints.
 - In the current profile-rollover flow, archived sessions are also closed. A session may be closed without being archived if Coqui needs a terminal but still explicitly visible record.
 
-Channel-backed interactive sessions are still first-class visible sessions. Their payloads include `channel_bound: true` plus a `channel` object describing the bound channel instance. Ordinary app-style session resolution intentionally skips channel-backed sessions so a normal "resume latest chat" flow does not land inside a Signal, Telegram, or Discord conversation lane.
-
-Hidden sessions are internal execution lanes for background work. They are excluded from session listings and other user-facing session inspection endpoints even when a client already knows the raw session ID. Visible session payloads now include a derived `session_origin` label: `user` for ordinary interactive sessions and `channel` for channel-backed conversations. Hidden background sessions resolve internally as `background` but are not returned by the user-facing session endpoints.
+Hidden sessions are internal execution lanes for background work. They are excluded from session listings and other user-facing session inspection endpoints even when a client already knows the raw session ID. Visible session payloads now include a derived `session_origin` label: `user` for ordinary interactive sessions. Hidden background sessions resolve internally as `background` but are not returned by the user-facing session endpoints.
 
 #### `GET /api/v1/sessions`
 
 List sessions, ordered by most recently updated.
 
-This endpoint is user-facing and only returns surfaced sessions (`visibility = visible`). Hidden background sessions such as learner, evaluator, scheduled, loop, webhook, and task execution lanes are intentionally excluded.
+This endpoint is user-facing and only returns surfaced sessions (`visibility = visible`). Hidden background sessions such as scheduled, loop, and task execution lanes are intentionally excluded.
 
 **Query Parameters**
 
@@ -321,7 +315,7 @@ This endpoint is user-facing and only returns surfaced sessions (`visibility = v
 | `include_closed` | bool | `false` | Legacy alias for `status=all` when `status` is omitted |
 | `profile` | string | unset | Filter by profile scope. Use a profile name like `caelum` or `none` for unprofiled sessions only |
 
-Each returned session also includes `session_origin`, which is `user` for ordinary interactive sessions and `channel` for channel-backed visible conversations.
+Each returned session also includes `session_origin`, which is `user` for ordinary interactive sessions or `background` for hidden background sessions.
 
 **Response `200`**
 
@@ -339,13 +333,6 @@ Each returned session also includes `session_origin`, which is `user` for ordina
       "closed_at": null,
       "archived_at": null,
       "closure_reason": null,
-      "channel_bound": true,
-      "channel": {
-        "instance_id": "channel_123",
-        "name": "signal-primary",
-        "driver": "signal",
-        "display_name": "Signal Primary"
-      },
       "created_at": "2026-02-16T14:30:00+00:00",
       "updated_at": "2026-02-16T15:45:12+00:00",
       "token_count": 12450
@@ -495,7 +482,7 @@ This mirrors REPL startup behavior:
 
 - Omit `profile` to target the unprofiled interactive session pool.
 - Pass `profile` to target a profile-specific interactive session pool.
-- Hidden worker sessions and visible channel-backed sessions are excluded from ordinary reuse.
+- Hidden worker sessions are excluded from ordinary reuse.
 - If multiple active interactive sessions exist for the same profile, Coqui keeps the newest one and archives/closes the older duplicates before responding.
 
 **Request Body**
@@ -585,13 +572,6 @@ Get session details.
   "closed_at": null,
   "archived_at": null,
   "closure_reason": null,
-  "channel_bound": true,
-  "channel": {
-    "instance_id": "channel_123",
-    "name": "signal-primary",
-    "driver": "signal",
-    "display_name": "Signal Primary"
-  },
   "active_project_id": "p1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
   "created_at": "2026-02-16T14:30:00+00:00",
   "updated_at": "2026-02-16T15:45:12+00:00",
@@ -636,13 +616,6 @@ Return a compact dashboard view for a session without fetching every child colle
         "draft": 1,
         "final": 1
       }
-    },
-    "todos": {
-      "total": 5,
-      "pending": 1,
-      "in_progress": 1,
-      "completed": 3,
-      "cancelled": 0
     }
   },
   "latest_turn": {
@@ -864,7 +837,7 @@ Closed or archived sessions are read-only. This endpoint returns `409 session_cl
 
 #### Conversation Summarization
 
-Compress older conversation history into a concise summary, preserving recent turns and workflow state (todos, artifacts).
+Compress older conversation history into a concise summary, preserving recent turns and workflow state (artifacts).
 
 **Request Body**
 
@@ -2024,7 +1997,6 @@ Return a single profile record with picker-friendly policy details.
       "artifacts": true,
       "projects": true,
       "loops": true,
-      "todos": true,
       "background_tasks": true
     },
     "prompt_sections": {
@@ -2057,7 +2029,6 @@ Return a single profile record with picker-friendly policy details.
         "artifacts": true,
         "projects": true,
         "loops": true,
-        "todos": true,
         "background_tasks": true
       },
       "roles": {
@@ -2078,7 +2049,6 @@ Return a single profile record with picker-friendly policy details.
         "artifacts": true,
         "projects": true,
         "loops": true,
-        "todos": true,
         "background_tasks": true
       },
       "roles": {
@@ -2134,7 +2104,7 @@ Provide either `description` or `soul`.
     "prompts": {
       "features": {
         "projects": false,
-        "todos": true
+        "loops": true
       }
     }
   }
@@ -2172,7 +2142,7 @@ Profile renaming is not supported by this endpoint yet.
     "prompts": {
       "features": {
         "projects": false,
-        "todos": true
+        "loops": true
       }
     }
   }
@@ -2578,7 +2548,7 @@ The `tasks` field is only present when the background task manager is enabled.
 
 #### `POST /api/v1/server/restart`
 
-Request a launcher-managed API restart. This endpoint is accepted only when the API process was started under `coqui-launcher` with restart support enabled.
+Request a launcher-managed API restart. This endpoint is accepted only when the API process was started under `coqui` with restart support enabled.
 
 **Response `202`**
 
@@ -2625,9 +2595,9 @@ Database-level statistics from SQLite.
 
 The `tables` field validates that all expected database tables exist. If any are missing, `ok` is `false` and the table names are listed in `missing`.
 
-### Projects & Sprints
+### Projects
 
-Projects organize work across sessions. Sprints break project work into ordered chunks and provide stable identifiers for loops, tasks, and todo workflows.
+A project is a lightweight named working scope backed by a workspace directory (`projects/‹slug›-‹id›/`). Projects organize work across sessions, loops, and tasks. Sessions track an `active_project_id`, and loops resolve or auto-create a project for their run.
 
 #### `GET /api/v1/projects`
 
@@ -2669,7 +2639,7 @@ Create a new project.
 
 #### `GET /api/v1/projects/{idOrSlug}`
 
-Get a project by ID or slug. The response includes summary sprint counts and the currently active sprint, if any.
+Get a project by ID or slug.
 
 #### `PATCH /api/v1/projects/{idOrSlug}`
 
@@ -2716,108 +2686,6 @@ Activate a project.
 
 Returns the same detail payload as `GET /api/v1/projects/{idOrSlug}` with `project.status = "active"`.
 
-#### `GET /api/v1/projects/{idOrSlug}/sprints`
-
-List sprints for one project.
-
-**Query Parameters**
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `status` | string | `null` | Optional sprint status filter |
-
-#### `POST /api/v1/projects/{idOrSlug}/sprints`
-
-Create a sprint inside a project.
-
-**Request Body**
-
-```json
-{
-  "title": "MVP Sprint",
-  "acceptance_criteria": "Core app shell is navigable.",
-  "contract_artifact_id": "artifact_contract_123",
-  "max_review_rounds": 4
-}
-```
-
-**Response `201`**
-
-```json
-{
-  "sprint": {
-    "id": "spr_123",
-    "project_id": "proj_123",
-    "title": "MVP Sprint",
-    "status": "planned",
-    "max_review_rounds": 4
-  },
-  "project": {
-    "id": "proj_123",
-    "slug": "career-ops"
-  }
-}
-```
-
-#### `GET /api/v1/sprints/{id}`
-
-Get a sprint by ID, including its parent project summary.
-
-#### `PATCH /api/v1/sprints/{id}`
-
-Update editable sprint fields.
-
-Supported fields:
-
-- `title`
-- `acceptance_criteria`
-- `contract_artifact_id`
-- `last_session_id`
-- `max_review_rounds`
-
-**Response `200`**
-
-Returns the same detail payload as `GET /api/v1/sprints/{id}`.
-
-#### `DELETE /api/v1/sprints/{id}`
-
-Delete a sprint while it is still in the `planned` state.
-
-**Response `200`**
-
-```json
-{
-  "deleted": true,
-  "id": "spr_123"
-}
-```
-
-#### `POST /api/v1/sprints/{id}/start`
-
-Transition a sprint from `planned` to `in_progress`.
-
-#### `POST /api/v1/sprints/{id}/submit-review`
-
-Transition a sprint from `in_progress` to `review`.
-
-#### `POST /api/v1/sprints/{id}/complete`
-
-Transition a sprint from `review` to `complete`.
-
-#### `POST /api/v1/sprints/{id}/reject`
-
-Transition a sprint from `review` to `rejected`.
-
-Optional request body:
-
-```json
-{
-  "reviewer_notes": "Needs stronger acceptance coverage."
-}
-```
-
-All sprint action routes return the same detail payload as `GET /api/v1/sprints/{id}`.
-
 ### Background Tasks
 
 Background tasks run long-running agent work in separate processes. Each task gets its own dedicated session and runs via `bin/coqui task:run`. Tasks are managed by the `BackgroundTaskManager` which handles process lifecycle, concurrency limits, and crash recovery.
@@ -2840,8 +2708,7 @@ Create a new background task. The task is started immediately if under the concu
   "title": "Auth refactor",
   "parent_session_id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
   "max_iterations": 25,
-  "project_id": "p1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-  "sprint_id": "s1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+  "project_id": "p1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
 }
 ```
 
@@ -2854,7 +2721,6 @@ Create a new background task. The task is started immediately if under the concu
 | `parent_session_id` | string | No | `null` | Link the task to a parent session (must exist). The task inherits that session's profile when one is set. |
 | `max_iterations` | int | No | `25` | Maximum agent iterations (1–100) |
 | `project_id` | string | No | `null` | Attach the task to an existing project |
-| `sprint_id` | string | No | `null` | Attach the task to an existing sprint. When provided, the sprint must exist and belong to the specified project if `project_id` is also set. |
 
 When `parent_session_id` is provided, it must refer to a writable session. Closed or archived parent sessions return `409 session_closed`.
 
@@ -2870,7 +2736,6 @@ When `parent_session_id` is provided, it must refer to a writable session. Close
   "profile": "caelum",
   "title": "Auth refactor",
   "project_id": "p1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-  "sprint_id": "s1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
   "created_at": "2026-02-16T14:30:00+00:00"
 }
 ```
@@ -2947,7 +2812,6 @@ Get detailed information about a specific task, including live process status.
   "role": "coder",
   "title": "Auth refactor",
   "project_id": "p1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-  "sprint_id": "s1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
   "process_alive": true,
   "created_at": "2026-02-16T14:30:00+00:00",
   "completed_at": null
@@ -3083,290 +2947,6 @@ The maximum number of concurrent background tasks is configurable via `openclaw.
 
 Tasks exceeding the concurrency limit are queued as `pending` and started automatically when a slot becomes available.
 
-### Todos
-
-Session-scoped task tracking. Todos are linked to a session and optionally to an artifact and/or parent todo for subtask hierarchies.
-
-#### `GET /api/v1/sessions/{id}/todos`
-
-List todos for a session with optional filters.
-
-**Query Parameters**
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `status` | string | `null` | Filter: `pending`, `in_progress`, `completed`, `cancelled` |
-| `artifact_id` | string | `null` | Filter by linked artifact |
-| `parent_id` | string | `null` | Filter by parent todo (for subtasks) |
-
-**Response `200`**
-
-```json
-{
-  "todos": [
-    {
-      "id": "a1b2c3d4",
-      "session_id": "s1a2b3c4",
-      "title": "Implement authentication module",
-      "status": "pending",
-      "priority": "high",
-      "artifact_id": null,
-      "parent_id": null,
-      "created_by": "plan",
-      "completed_by": null,
-      "notes": "See auth spec in artifact abc123",
-      "sort_order": 1,
-      "created_at": "2026-02-16T14:30:00+00:00",
-      "updated_at": "2026-02-16T14:30:00+00:00",
-      "completed_at": null
-    }
-  ],
-  "count": 1
-}
-```
-
-#### `POST /api/v1/sessions/{id}/todos`
-
-Create a single session-scoped todo.
-
-**Request Body**
-
-```json
-{
-  "title": "Implement authentication module",
-  "priority": "high",
-  "artifact_id": "abc123",
-  "parent_id": null,
-  "sprint_id": "sprint_123",
-  "notes": "See auth spec",
-  "sort_order": 3
-}
-```
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `title` | string | Yes | — | Task description |
-| `priority` | string | No | `"medium"` | `high`, `medium`, or `low` |
-| `artifact_id` | string | No | `null` | Link to an artifact |
-| `parent_id` | string | No | `null` | Parent todo ID (for subtasks) |
-| `sprint_id` | string | No | `null` | Link the todo to a sprint |
-| `notes` | string | No | `null` | Additional context |
-| `sort_order` | integer | No | auto | Override the default sort order |
-
-**Response `201`**
-
-```json
-{
-  "id": "a1b2c3d4",
-  "session_id": "s1a2b3c4",
-  "title": "Implement authentication module",
-  "status": "pending",
-  "priority": "high",
-  "artifact_id": "abc123",
-  "parent_id": null,
-  "sprint_id": "sprint_123",
-  "notes": "See auth spec",
-  "sort_order": 3,
-  "subtasks": []
-}
-```
-
-**Response `400`** — validation error:
-
-```json
-{
-  "error": "Title is required",
-  "code": "validation_error"
-}
-```
-
-#### `GET /api/v1/sessions/{id}/todos/stats`
-
-Get aggregate statistics for session todos.
-
-**Response `200`**
-
-```json
-{
-  "total": 10,
-  "pending": 3,
-  "in_progress": 2,
-  "completed": 4,
-  "cancelled": 1
-}
-```
-
-#### `GET /api/v1/sessions/{id}/todos/{todoId}`
-
-Get a specific todo with its subtasks.
-
-**Response `200`**
-
-```json
-{
-  "id": "a1b2c3d4",
-  "title": "Implement authentication module",
-  "status": "in_progress",
-  "priority": "high",
-  "subtasks": []
-}
-```
-
-**Response `404`**
-
-```json
-{
-  "error": "Todo not found",
-  "code": "not_found"
-}
-```
-
-#### `PATCH /api/v1/sessions/{id}/todos/{todoId}`
-
-Update a todo's fields.
-
-**Request Body**
-
-```json
-{
-  "status": "in_progress",
-  "priority": "high",
-  "notes": "Started working on this"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `title` | string | No | New title |
-| `status` | string | No | `pending`, `in_progress`, `completed`, `cancelled` |
-| `priority` | string | No | `high`, `medium`, `low` |
-| `notes` | string | No | Updated notes |
-| `artifact_id` | string or `null` | No | Relink or clear the linked artifact |
-| `parent_id` | string or `null` | No | Relink or clear the parent todo |
-| `sprint_id` | string or `null` | No | Relink or clear the sprint |
-| `sort_order` | integer | No | Override the current sort order |
-
-**Response `200`**
-
-```json
-{
-  "id": "a1b2c3d4",
-  "status": "in_progress",
-  "priority": "high",
-  "subtasks": []
-}
-```
-
-#### `PATCH /api/v1/sessions/{id}/todos/bulk`
-
-Update multiple todos in a single request. Max 25 items per call.
-
-**Request Body**
-
-```json
-{
-  "updates": [
-    {"id": "a1b2c3d4", "status": "completed"},
-    {"id": "e5f6g7h8", "status": "in_progress", "priority": "high"}
-  ]
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `updates` | array | Yes | Array of update objects (max 25) |
-| `updates[].id` | string | Yes | Todo ID to update |
-| `updates[].status` | string | No | New status |
-| `updates[].priority` | string | No | New priority |
-| `updates[].title` | string | No | New title |
-| `updates[].notes` | string or `null` | No | Updated notes |
-
-**Response `200`**
-
-```json
-{
-  "updated_count": 2
-}
-```
-
-#### `POST /api/v1/sessions/{id}/todos/reorder`
-
-Set explicit sort orders for multiple todos.
-
-**Request Body**
-
-```json
-{
-  "ordering": [
-    {"id": "a1b2c3d4", "sort_order": 1},
-    {"id": "e5f6g7h8", "sort_order": 2}
-  ]
-}
-```
-
-**Response `200`**
-
-```json
-{
-  "reordered_count": 2
-}
-```
-
-#### `POST /api/v1/sessions/{id}/todos/{todoId}/complete`
-
-Mark a todo as completed. Optional request fields: `completed_by`, `notes`.
-
-**Response `200`**
-
-```json
-{
-  "id": "a1b2c3d4",
-  "status": "completed",
-  "subtasks": []
-}
-```
-
-#### `POST /api/v1/sessions/{id}/todos/{todoId}/reopen`
-
-Reopen a completed or cancelled todo back to `pending`.
-
-**Response `200`**
-
-```json
-{
-  "id": "a1b2c3d4",
-  "status": "pending",
-  "subtasks": []
-}
-```
-
-#### `POST /api/v1/sessions/{id}/todos/{todoId}/cancel`
-
-Cancel a pending or in-progress todo.
-
-**Response `200`**
-
-```json
-{
-  "id": "a1b2c3d4",
-  "status": "cancelled",
-  "subtasks": []
-}
-```
-
-#### `DELETE /api/v1/sessions/{id}/todos/{todoId}`
-
-Delete a todo and all its subtasks.
-
-**Response `200`**
-
-```json
-{
-  "deleted": true,
-  "id": "a1b2c3d4"
-}
-```
-
 ### Artifacts
 
 Artifacts are versioned content objects scoped to a session. They support a lifecycle (`draft` → `review` → `final`) and are used for structured planning, code generation, and handoff between roles.
@@ -3387,7 +2967,6 @@ Create a new artifact in a session.
   "stage": "draft",
   "language": "markdown",
   "project_id": "proj_123",
-  "sprint_id": "sprint_123",
   "tags": ["database", "migration"],
   "summary": "Initial migration rollout plan"
 }
@@ -3405,7 +2984,6 @@ Create a new artifact in a session.
 | `tags` | array | No | — | Convenience shorthand for `metadata.tags` |
 | `summary` | string | No | — | Convenience shorthand for `metadata.summary` |
 | `project_id` | string | No | `null` | Link the artifact to a project |
-| `sprint_id` | string | No | `null` | Link the artifact to a sprint |
 | `persistent` | boolean | No | `false` | Keep the artifact outside normal session cleanup |
 
 **Response `201`**
@@ -3468,7 +3046,7 @@ Returns the full artifact object including content.
 
 Patch artifact metadata, stage, links, or content.
 
-If `content` is included, the patch creates a new artifact version. Without `content`, metadata-only changes stay on the current version row.
+If `content` is included, the artifact's content is replaced and its `version` counter is bumped (for filesystem-backed artifacts the canonical file is rewritten). Without `content`, only metadata changes.
 
 **Request Body**
 
@@ -3487,66 +3065,9 @@ If `content` is included, the patch creates a new artifact version. Without `con
 
 Returns the full current artifact object.
 
-#### `GET /api/v1/sessions/{id}/artifacts/{artifactId}/versions`
-
-List all versions of an artifact.
-
-**Response `200`**
-
-```json
-{
-  "artifact_id": "art_1a2b3c4d",
-  "versions": [
-    {
-      "id": "ver_123",
-      "version": 1,
-      "content": "## Steps\n1. ...",
-      "change_summary": "Initial version",
-      "created_by": "plan",
-      "created_at": "2026-02-16T14:30:00Z"
-    },
-    {
-      "version": 2,
-      "content": "## Updated Steps\n1. ...",
-      "change_summary": "Added error handling steps",
-      "created_by": "coder",
-      "created_at": "2026-02-16T15:00:00Z"
-    }
-  ],
-  "count": 2
-}
-```
-
-#### `POST /api/v1/sessions/{id}/artifacts/{artifactId}/versions`
-
-Create a new artifact version directly.
-
-**Request Body**
-
-```json
-{
-  "content": "## Updated Steps\n1. ...",
-  "change_summary": "Added rollback notes",
-  "title": "Database migration plan v2",
-  "stage": "review"
-}
-```
-
-**Response `200`**
-
-Returns the full current artifact object.
-
-#### `POST /api/v1/sessions/{id}/artifacts/{artifactId}/versions/{versionId}/restore`
-
-Restore an older artifact version by version row id.
-
-**Response `200`**
-
-Returns the full current artifact object with a newly created version containing the restored content.
-
 #### `DELETE /api/v1/sessions/{id}/artifacts/{artifactId}`
 
-Delete an artifact and its version history.
+Delete an artifact (and its canonical file, if filesystem-backed).
 
 **Response `200`**
 
@@ -3804,9 +3325,11 @@ Loop stage advancement only happens while the API server is running. `LoopManage
 
 Create and start a loop.
 
-Use `session_id` when the loop should inherit the session's active project and downstream profile context. Use `project_id` or `project_slug` to pin the loop to a project directly. Use `sprint_id` to bind the first iteration to an existing sprint; when only `sprint_id` is supplied, the loop inherits that sprint's project automatically.
+Use `session_id` when the loop should inherit the session's active project and downstream profile context. Use `project_id` or `project_slug` to pin the loop to a project directly. When no project is supplied, the loop resolves or auto-creates one for its run.
 
 When `session_id` is provided, it must refer to a writable session. Closed or archived sessions return `409 session_closed`.
+
+**Headless start.** Omit `session_id` (send just `{definition, goal}`, optionally a project) to start a loop with no conversation. Coqui auto-provisions a hidden, loop-owned work-scope session whose active project is the loop's project, so cross-stage artifacts stay project-scoped exactly as they do for chat-started loops. Such loops record `metadata.origin: "headless"` (vs `"conversation"` when a `session_id` is supplied); see the `origin`/`headless` fields on the loop read endpoints below.
 
 **Request Body**
 
@@ -3818,8 +3341,7 @@ When `session_id` is provided, it must refer to a writable session. Closed or ar
   "parameters": {
     "subject": "loop lifecycle API"
   },
-  "max_iterations": 3,
-  "sprint_id": "spr_123"
+  "max_iterations": 3
 }
 ```
 
@@ -3847,7 +3369,6 @@ When `session_id` is provided, it must refer to a writable session. Closed or ar
     "id": "iter123",
     "loop_id": "abc123",
     "iteration_number": 1,
-    "sprint_id": "spr_123",
     "status": "running"
   },
   "stages": [
@@ -3871,6 +3392,9 @@ List all loops with optional status filter.
 | Parameter | Type | Description |
 | --- | --- | --- |
 | `status` | string | Filter by status: `running`, `paused`, `completed`, `failed`, `cancelled` |
+| `headless` | boolean | Filter by origin: `true`/`1` returns only headless loops, `false`/`0` only conversation loops |
+
+Each returned loop carries a derived `headless` boolean (`true` when the loop was started with no conversation session).
 
 **Response `200`**
 
@@ -3884,6 +3408,7 @@ List all loops with optional status filter.
       "status": "running",
       "current_iteration": 2,
       "current_stage": 1,
+      "headless": false,
       "created_at": "2026-02-16T14:00:00Z",
       "updated_at": "2026-02-16T14:30:00Z"
     }
@@ -3916,6 +3441,7 @@ List available loop definitions.
   "definitions": [
     {
       "name": "harness",
+      "builtin": true,
       "description": "Generator-evaluator pattern",
       "parameters": [
         {
@@ -3948,6 +3474,81 @@ List available loop definitions.
   "count": 1
 }
 ```
+
+Each entry's `builtin` flag is `true` when a definition of that name ships in
+`config/loops/` (seeded into the workspace on boot). Built-ins are editable and
+deletable like any other definition; a deleted built-in re-seeds on the next
+boot.
+
+#### `GET /api/v1/loops/definitions/{name}`
+
+Get one loop definition as its raw JSON (the exact stored file contents).
+
+**Response `200`** — the raw definition object.
+
+**Errors**
+
+- `400 validation_error` — `{name}` is not a valid definition name.
+- `404 not_found` — no definition with that name exists.
+
+`{name}` must match `^[a-z0-9][a-z0-9_-]*$` (the name becomes a filename, so
+this is a strict path-traversal guard).
+
+#### `POST /api/v1/loops/definitions`
+
+Create a new loop definition. Create-only — use `PUT` to overwrite an existing
+one. The `name` field in the body is authoritative and becomes the filename
+(`workspace/loops/{name}.json`).
+
+**Request**
+
+```json
+{
+  "name": "my-loop",
+  "description": "My custom loop",
+  "roles": [
+    { "role": "plan", "prompt": "Plan work for {{subject}}." }
+  ],
+  "termination_condition": { "type": "iteration_bound", "value": 3 }
+}
+```
+
+**Response `201`** — the stored raw definition.
+
+**Errors**
+
+- `400 validation_error` — missing/invalid `name` (must match `^[a-z0-9][a-z0-9_-]*$`),
+  or an invalid structure (e.g. empty `roles`, missing `termination_condition`).
+- `409 conflict` — a definition with that name already exists.
+
+#### `PUT /api/v1/loops/definitions/{name}`
+
+Upsert a loop definition — creates it if absent, overwrites it if present. The
+path `{name}` is authoritative; any `name` in the body is ignored.
+
+**Request** — same shape as `POST`, without a required `name`.
+
+**Response `200`** — the stored raw definition.
+
+**Errors**
+
+- `400 validation_error` — invalid `{name}`, or an invalid structure.
+
+#### `DELETE /api/v1/loops/definitions/{name}`
+
+Delete a loop definition file. Deleting a built-in removes it from the
+workspace; it re-seeds from `config/loops/` on the next boot.
+
+**Response `200`**
+
+```json
+{ "deleted": true, "name": "my-loop" }
+```
+
+**Errors**
+
+- `400 validation_error` — invalid `{name}`.
+- `404 not_found` — no definition with that name exists.
 
 #### `GET /api/v1/loops/{id}/history`
 
@@ -4034,9 +3635,120 @@ Return aggregate counts and timing summaries for a loop.
 
 **Response `404`** — loop not found.
 
+#### `GET /api/v1/loops/{id}/live`
+
+Return a rich, poll-friendly snapshot of an in-flight loop: where it is, what
+it is running right now, how much it has consumed, a per-stage breakdown, and a
+newest-first feed of recent activity. This is a read-model composed from
+existing loop, task, turn, and event data — it makes no changes to the loop.
+
+Intended for dashboards and status pollers. It is poll-based; clients refresh on
+an interval. For push-based updates, pair it with the
+[`GET /api/v1/loops/{id}/events`](#get-apiv1loopsidevents) SSE stream below and
+refetch this snapshot on each nudge.
+
+**Response `200`**
+
+```json
+{
+  "loop": {
+    "id": "abc123",
+    "definition_name": "harness",
+    "goal": "Implement a new caching layer",
+    "status": "running",
+    "project_id": null,
+    "work_scope_session_id": null,
+    "started_at": "2026-07-11T10:00:00Z",
+    "last_activity_at": "2026-07-11T10:03:00Z",
+    "completed_at": null,
+    "deadline": "2026-07-11T10:10:00Z"
+  },
+  "position": {
+    "current_iteration": 1,
+    "max_iterations": 4,
+    "current_stage_index": 1,
+    "current_stage_role": "reviewer",
+    "stages_per_iteration": 2
+  },
+  "current_stage": {
+    "stage_id": "stage789",
+    "iteration_number": 1,
+    "stage_index": 1,
+    "role": "reviewer",
+    "model": "claude-sonnet-5",
+    "status": "running",
+    "task_id": "task456",
+    "session_id": "sess456",
+    "started_at": "2026-07-11T10:02:30Z",
+    "last_heartbeat_at": "2026-07-11T10:03:00Z",
+    "latest_activity": {
+      "type": "tool_call",
+      "summary": "Called read",
+      "timestamp": "2026-07-11T10:03:00Z"
+    }
+  },
+  "budget": {
+    "tokens": { "prompt": 100, "completion": 50, "total": 150 },
+    "iterations": { "used": 1, "max": 4 },
+    "time": {
+      "elapsed_seconds": 180,
+      "deadline": "2026-07-11T10:10:00Z",
+      "remaining_seconds": 420
+    }
+  },
+  "stages": [
+    {
+      "iteration_number": 1,
+      "stage_index": 0,
+      "role": "plan",
+      "model": "claude-sonnet-5",
+      "status": "completed",
+      "tokens": { "prompt": 100, "completion": 50, "total": 150 },
+      "duration_ms": 1200,
+      "tools_used": ["grep", "read"],
+      "result_summary": "planned",
+      "started_at": "2026-07-11T10:00:05Z",
+      "completed_at": "2026-07-11T10:02:25Z",
+      "task_id": "task123"
+    }
+  ],
+  "recent_events": [
+    {
+      "timestamp": "2026-07-11T10:03:00Z",
+      "stage_id": "stage789",
+      "role": "reviewer",
+      "type": "tool_call",
+      "summary": "Called read"
+    }
+  ]
+}
+```
+
+`current_stage` is `null` when no stage is currently running. Fields that have
+no data yet are `null` (e.g. `model` and zeroed `tokens` for a stage whose first
+turn has not completed). `time.remaining_seconds` is `null` when the loop has no
+deadline.
+
+**Response `404`** — loop not found.
+
+#### `GET /api/v1/loops/{id}/events`
+
+Server-Sent Events stream of lightweight nudges for a running loop, so a client can watch progress without fixed-interval polling. The stream carries **signals only** — on each nudge the client re-fetches `GET /loops/{id}/live` for the full snapshot (that endpoint stays the single source of truth).
+
+**Response `200`** — `Content-Type: text/event-stream`. Unknown loop → `404`.
+
+| Event | Fires when | `data` |
+|---|---|---|
+| `connected` | on open | `{"loop_id": "‹id›"}` |
+| `stage_changed` | iteration/stage advanced, or lifecycle status changed (incl. pause/resume) | `{"iteration": N, "stage_index": N, "status": "‹status›"}` |
+| `activity` | new task events, position unchanged (coalesced to one per tick) | `{"cursor": ‹max_event_id›}` |
+| `done` | loop reached `completed`/`failed`/`cancelled` — stream then closes | `{"status": "‹status›"}` |
+
+Each frame carries an SSE `id:` (the activity cursor) so reconnecting clients resume via `Last-Event-ID`; a reconnect re-syncs by refetching `/live`. `role`/`model`/budget are intentionally not in the payload — read them from `/live`.
+
 #### `GET /api/v1/loops/{id}`
 
-Get detailed loop status including current iteration and stage information.
+Get detailed loop status including current iteration and stage information. The loop object carries `origin` (`headless` or `conversation`).
 
 **Response `200`**
 
@@ -4049,6 +3761,7 @@ Get detailed loop status including current iteration and stage information.
     "status": "running",
     "current_iteration": 2,
     "current_stage": 1,
+    "origin": "conversation",
     "configuration": "{...}",
     "metadata": {
       "dispatch": {
@@ -4268,393 +3981,6 @@ Returned when:
 - the loop is still `running`
 - the iteration is not in `failed` or `needs_rework`
 
-### Channels
-
-Channels provide first-class outbound user communication surfaces such as Signal, Telegram, and Discord. The API server owns live channel runtimes; the REPL can edit config and inspect stored state, but only the API server performs runtime reconciliation and transport work. Channel mutations now return a `restart` payload when operator action is required so clients can keep the API and persisted config in sync.
-
-#### `GET /api/v1/channels`
-
-List configured channel instances with joined runtime health.
-
-**Query Parameters**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `enabled` | bool | `null` | Filter to enabled or disabled instances |
-| `driver` | string | `null` | Filter by driver name |
-
-#### `POST /api/v1/channels`
-
-Create a channel instance definition. The response includes the updated channel plus a `restart` object when the API should be restarted to reload runtimes against the persisted config cleanly.
-
-**Request Body**
-
-```json
-{
-  "name": "signal-primary",
-  "driver": "signal",
-  "displayName": "Signal Primary",
-  "defaultProfile": "caelum",
-  "boundSessionId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-  "settings": {
-    "transport": "signal-cli"
-  }
-}
-```
-
-Supported fields: `name`, `driver`, `enabled`, `displayName`, `defaultProfile`, `boundSessionId`, `settings`, `allowedScopes`, and `security`.
-
-`boundSessionId` is optional. When set, the channel instance routes all inbound conversations into one existing visible interactive session instead of creating per-conversation interactive sessions.
-
-**Response `201`**
-
-```json
-{
-  "channel": {
-    "id": "channel_123",
-    "name": "signal-primary",
-    "driver": "signal",
-    "display_name": "Signal Primary",
-    "default_profile": "caelum",
-    "bound_session_id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
-  },
-  "restart": {
-    "required": true,
-    "reason": "channel_configuration_changed"
-  }
-}
-```
-
-#### `GET /api/v1/channels/drivers`
-
-List registered built-in and external channel drivers with capability metadata.
-
-#### `GET /api/v1/channels/{id}`
-
-Get one channel instance by id or name.
-
-**Response `200`**
-
-```json
-{
-  "channel": {
-    "id": "channel_123",
-    "name": "signal-primary",
-    "driver": "signal",
-    "display_name": "Signal Primary",
-    "enabled": true,
-    "default_profile": "caelum",
-    "bound_session_id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-    "worker_status": "running",
-    "ready": true,
-    "summary": "Signal runtime ready."
-  }
-}
-```
-
-#### `PATCH /api/v1/channels/{id}`
-
-Update any mutable channel fields from the create payload. Successful mutations return the updated channel plus restart metadata when a clean API restart is required.
-
-Clients may send either `boundSessionId` or `bound_session_id` in update payloads. The response always normalizes the stored field to `bound_session_id`.
-
-#### `DELETE /api/v1/channels/{id}`
-
-Remove a configured channel instance. Successful mutations return restart metadata when the API should be restarted to fully reconcile runtime state.
-
-#### `POST /api/v1/channels/{id}/enable`
-
-Enable a channel instance and return restart metadata when the API should be restarted to reload runtimes cleanly.
-
-#### `POST /api/v1/channels/{id}/disable`
-
-Disable a channel instance and return restart metadata when the API should be restarted to reload runtimes cleanly.
-
-#### `POST /api/v1/channels/{id}/test`
-
-Force a reconcile/tick cycle and return the refreshed channel row.
-
-#### `GET /api/v1/channels/{id}/health`
-
-Return the stored runtime health snapshot for one channel.
-
-#### `GET /api/v1/channels/{id}/links`
-
-List channel identity links.
-
-#### `POST /api/v1/channels/{id}/links`
-
-Create a channel identity link.
-
-**Request Body**
-
-```json
-{
-  "remote_user_key": "signal:+15551234567",
-  "profile": "caelum"
-}
-```
-
-#### `DELETE /api/v1/channels/{id}/links/{linkId}`
-
-Delete a channel identity link.
-
-#### `GET /api/v1/channels/{id}/conversations`
-
-List stored channel conversation records for one instance.
-
-#### `GET /api/v1/channels/{id}/events`
-
-List stored inbound event records for one instance.
-
-#### `GET /api/v1/channels/{id}/deliveries`
-
-List stored delivery records for one instance.
-
-### Webhooks
-
-Webhooks receive signed HTTP POST requests from external services and automatically spawn background tasks. Signature verification supports GitHub, Slack, and generic HMAC schemes.
-
-Incoming webhook delivery is an API-server responsibility. The REPL can manage webhook records through commands and tools, but it does not host an HTTP listener.
-
-#### `POST /api/v1/webhooks/incoming/{name}`
-
-Receive an incoming webhook delivery. This is the endpoint external services send payloads to.
-
-**Headers** — signature header depends on the webhook's source type:
-- GitHub: `X-Hub-Signature-256`
-- Slack: `X-Slack-Signature` + `X-Slack-Request-Timestamp`
-- Generic: `X-Webhook-Signature`, `X-Signature`, or `Authorization: Bearer ‹secret›`
-
-**Request Body** — raw payload (JSON or other). Maximum 1 MB.
-
-**Response `200`**
-
-```json
-{
-  "accepted": true,
-  "task_id": "t1a2b3c4d5e6f7g8"
-}
-```
-
-**Response `400`** — disabled webhook, empty body, payload too large.
-
-**Response `401`** — invalid signature.
-
-**Response `404`** — unknown webhook name.
-
-#### `GET /api/v1/webhooks`
-
-List all webhook subscriptions. Secrets are masked in responses.
-
-**Response `200`**
-
-```json
-{
-  "webhooks": [
-    {
-      "id": "w1a2b3c4",
-      "name": "github-push",
-      "description": "Handles GitHub push events",
-      "source": "github",
-      "secret": "abc1****5678",
-      "prompt_template": "A push was made: {{payload}}",
-      "role": "orchestrator",
-      "profile": "caelum",
-      "max_iterations": 48,
-      "enabled": 1,
-      "event_filter": "push,pull_request",
-      "trigger_count": 12,
-      "created_at": "2026-02-10T12:00:00Z"
-    }
-  ],
-  "stats": {
-    "total": 2,
-    "enabled": 1,
-    "disabled": 1,
-    "total_triggers": 15
-  }
-}
-```
-
-#### `POST /api/v1/webhooks`
-
-Create a webhook subscription. Returns the signing secret (shown only once in full).
-
-**Request Body**
-
-```json
-{
-  "name": "github-push",
-  "prompt_template": "Review this push: {{payload}}",
-  "source": "github",
-  "role": "coder",
-  "profile": "caelum",
-  "event_filter": "push,pull_request",
-  "description": "GitHub push handler",
-  "max_iterations": 30
-}
-```
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | Yes | — | Unique name (alphanumeric, hyphens, underscores) |
-| `prompt_template` | string | Yes | — | Template with `{{payload}}`, `{{event_type}}`, `{{summary}}` placeholders |
-| `source` | string | No | `"generic"` | Verification scheme: `generic`, `github`, or `slack` |
-| `role` | string | No | `"orchestrator"` | Agent role for triggered tasks |
-| `profile` | string | No | `null` | Profile assigned to triggered task sessions. Must exist under `profiles/{name}/soul.md`. |
-| `event_filter` | string | No | `null` | Comma-separated event types to accept |
-| `description` | string | No | `null` | Human-readable description |
-| `max_iterations` | int | No | `48` | Max iterations per triggered task (1–100) |
-
-**Response `201`** — webhook object with full secret.
-
-**Response `400`** — validation error (duplicate name, invalid source).
-
-#### `GET /api/v1/webhooks/{id}`
-
-Get a webhook subscription. Secret is masked.
-
-**Response `200`** — webhook object.
-
-**Response `404`** — webhook not found.
-
-#### `PUT /api/v1/webhooks/{id}`
-
-Update a webhook subscription.
-
-**Request Body** — any subset of: `name`, `description`, `source`, `prompt_template`, `role`, `profile`, `max_iterations`, `enabled`, `event_filter`.
-
-**Response `200`** — updated webhook object (secret masked).
-
-**Response `400`** — validation error.
-
-**Response `404`** — webhook not found.
-
-#### `DELETE /api/v1/webhooks/{id}`
-
-Delete a webhook subscription and all its delivery logs.
-
-**Response `200`**
-
-```json
-{
-  "deleted": true
-}
-```
-
-**Response `404`** — webhook not found.
-
-#### `POST /api/v1/webhooks/{id}/rotate`
-
-Rotate the signing secret. Returns the new secret in full. Update the external service configuration immediately.
-
-**Response `200`**
-
-```json
-{
-  "rotated": true,
-  "new_secret": "a1b2c3d4e5f6..."
-}
-```
-
-**Response `404`** — webhook not found.
-
-#### `GET /api/v1/webhooks/{id}/deliveries`
-
-List recent delivery logs for a webhook.
-
-**Query Parameters**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `limit` | int | `50` | Max deliveries to return (1–100) |
-
-**Response `200`**
-
-```json
-{
-  "deliveries": [
-    {
-      "id": "d1a2b3c4",
-      "webhook_id": "w1a2b3c4",
-      "event_type": "push",
-      "payload_summary": "{\"ref\": \"refs/heads/main\", ...}",
-      "task_id": "t1a2b3c4",
-      "status": "delivered",
-      "source_ip": "140.82.115.1",
-      "created_at": "2026-02-16T14:30:00Z"
-    }
-  ]
-}
-```
-
-Delivery statuses currently include `delivered`, `test_delivered`, `filtered`, `rejected_disabled`, `rejected_signature`, `rejected_empty`, and `rejected_too_large`.
-
-#### `GET /api/v1/webhooks/{id}/deliveries/{deliveryId}`
-
-Fetch one delivery log entry for a webhook. If the delivery spawned a background task, the linked task record is included alongside the delivery metadata.
-
-**Response `200`**
-
-```json
-{
-  "delivery": {
-    "id": "d1a2b3c4",
-    "webhook_id": "w1a2b3c4",
-    "event_type": "push",
-    "task_id": "t1a2b3c4",
-    "status": "delivered"
-  },
-  "task": {
-    "id": "t1a2b3c4",
-    "status": "pending",
-    "role": "orchestrator"
-  }
-}
-```
-
-**Response `404`** — webhook or delivery not found.
-
-#### `POST /api/v1/webhooks/{id}/test`
-
-Create a synthetic delivery for a webhook using the real prompt-rendering and background-task dispatch path.
-
-This endpoint is useful for validating prompt templates, routing, and profile assignment without waiting for an external service to send a live event. Test deliveries are logged with `status: test_delivered` and do not increment the webhook trigger counters.
-
-**Request Body**
-
-```json
-{
-  "event_type": "pull_request",
-  "payload": {
-    "repository": {
-      "full_name": "carmelo/coqui"
-    },
-    "sender": {
-      "login": "carmelo"
-    }
-  }
-}
-```
-
-Both fields are optional. When omitted, `event_type` defaults to `test` and a minimal synthetic payload is generated automatically.
-
-**Response `200`**
-
-```json
-{
-  "status": "accepted",
-  "delivery_id": "d1a2b3c4",
-  "task_id": "t1a2b3c4",
-  "session_id": "s1a2b3c4",
-  "event_type": "pull_request",
-  "prompt_preview": "Handle pull_request from carmelo/coqui"
-}
-```
-
-**Response `404`** — webhook not found.
-
 ## Toolkit Management
 
 Toolkit visibility controls which tools appear in the agent's context window and how they are represented. Each toolkit (Composer package) and each individual tool can be set to one of three visibility tiers:
@@ -4788,7 +4114,9 @@ Set the visibility of a package or an individual tool.
 
 ### MCP Servers
 
-MCP server management is now available over HTTP and uses the same shared MCP runtime service as the `mcp` tool and `/mcp` REPL command. These endpoints are intended for operator flows such as adding or updating servers, linking credentials, inspecting discovered tools, and verifying connectivity.
+The MCP client engine and this API surface ship in Coqui core by default (`CoquiBot\Coqui\Mcp\*`) — every endpoint below works fully without any additional package installed, with one exception: `POST /api/v1/mcp/servers/{name}/auth` (browser-based OAuth) requires the optional [`coquibot/coqui-toolkit-mcp-client`](https://github.com/AgentCoqui/coqui-toolkit-mcp-client) package. When that package is not installed, calling the `/auth` endpoint returns an error explaining that OAuth requires the management toolkit.
+
+MCP server management is available over HTTP and uses the same shared MCP runtime service as the optional `mcp` tool and `/mcp` REPL command (when the management toolkit is installed). These endpoints are intended for operator flows such as adding or updating servers, linking credentials, inspecting discovered tools, and verifying connectivity.
 
 The API keeps MCP auditing live-only for now: each server snapshot includes the latest connection attempt, latest connectivity test result, durations, timestamps, the current `loadingMode`, and last discovered tool count, but does not persist a historical delivery-style audit ledger.
 
@@ -4899,7 +4227,7 @@ For secret-link-only flows, send `placeholder` instead of `value`.
 
 #### `POST /api/v1/mcp/servers/{name}/auth`
 
-Run browser-based OAuth for one server and store the resulting access token as an env link.
+Run browser-based OAuth for one server and store the resulting access token as an env link. **Requires the optional `coquibot/coqui-toolkit-mcp-client` package.** Core ships no OAuth implementation; when the toolkit is not installed, this endpoint returns an error stating that OAuth requires the management toolkit.
 
 **Request Body**
 
@@ -5260,6 +4588,8 @@ Each prompt submission runs inside a PHP Fiber. The ReactPHP event loop remains 
 
 The API overlaps with the REPL, but it does **not** mirror every slash command. The current HTTP surface focuses on session execution plus read-heavy inspection.
 
+The `/mcp` REPL command itself comes from the optional `coquibot/coqui-toolkit-mcp-client` package (see [docs/COMMANDS.md](/guides/commands)), but every API equivalent listed below is core and works whether or not that package is installed.
+
 | REPL Command | API Equivalent | Notes |
 |---|---|---|
 | `/new` | `POST /api/v1/sessions` | Creates a new session |
@@ -5272,7 +4602,6 @@ The API overlaps with the REPL, but it does **not** mirror every slash command. 
 | `/task ‹id›` | `GET /api/v1/tasks/{id}` | Gets task detail |
 | `/task-cancel ‹id›` | `POST /api/v1/tasks/{id}/cancel` | Cancels a running or pending task |
 | `/projects` | `GET /api/v1/projects` | Lists projects |
-| `/sprints` | `GET /api/v1/projects/{idOrSlug}/sprints` | Lists sprints for a project |
 | `—` | `GET /api/v1/server/info` | Returns server runtime capabilities and status |
 | `/toolkits` | `GET /api/v1/toolkits` | Lists all toolkit packages and tools with visibility |
 | `/toolkits enable ‹pkg›` | `POST /api/v1/toolkits/visibility` | Sets package or tool visibility to enabled |
@@ -5295,15 +4624,6 @@ The API overlaps with the REPL, but it does **not** mirror every slash command. 
 | `/mcp refresh ‹name›` | `POST /api/v1/mcp/servers/{name}/refresh` | Reconnects and refreshes MCP tools |
 | `/mcp test ‹name›` | `POST /api/v1/mcp/servers/{name}/test` | Tests MCP connectivity and tool discovery |
 | `/mcp set-env ‹name› ‹ENV_KEY›` | `POST /api/v1/mcp/servers/{name}/env` | Links a secret or env placeholder to an MCP server |
-| `/channels` | `GET /api/v1/channels` | Lists channels with runtime state |
-| `/channels drivers` | `GET /api/v1/channels/drivers` | Lists registered channel drivers |
-| `/channels status ‹id›` | `GET /api/v1/channels/{id}` | Shows channel details |
-| `/channels health ‹id›` | `GET /api/v1/channels/{id}/health` | Shows channel health |
-| `/channels enable ‹id›` | `POST /api/v1/channels/{id}/enable` | Enables a channel instance |
-| `/channels disable ‹id›` | `POST /api/v1/channels/{id}/disable` | Disables a channel instance |
-| `/channels delete ‹id›` | `DELETE /api/v1/channels/{id}` | Deletes a channel instance |
-| `/channels links ‹id›` | `GET /api/v1/channels/{id}/links` | Lists identity links for a channel |
-| `/channels deliveries ‹id›` | `GET /api/v1/channels/{id}/deliveries` | Lists delivery records for a channel |
 | `/help` | `GET /api/v1/server/commands` | Returns the runtime slash-command catalog |
 | `/prompt` | `GET /api/v1/server/prompt` | Outputs the fully constructed system prompt |
 | `/backstory` | `GET /api/v1/server/backstory?profile=‹name›` | Returns generated backstory content and source breakdowns |
@@ -5326,14 +4646,6 @@ The API overlaps with the REPL, but it does **not** mirror every slash command. 
 | `/schedules enable ‹id›` | `POST /api/v1/schedules/{id}/enable` | Enables a mutable schedule |
 | `/schedules disable ‹id›` | `POST /api/v1/schedules/{id}/disable` | Disables a mutable schedule |
 | `/schedules trigger ‹id›` | `POST /api/v1/schedules/{id}/trigger` | Forces a mutable schedule to run on the next tick |
-| `/webhooks status ‹id›` | `GET /api/v1/webhooks/{id}` | Shows webhook details |
-| `/webhooks deliveries ‹id›` | `GET /api/v1/webhooks/{id}/deliveries` | Shows recent delivery logs |
-| `/webhooks delivery ‹id› ‹deliveryId›` | `GET /api/v1/webhooks/{id}/deliveries/{deliveryId}` | Shows one delivery log with linked task details |
-| `/webhooks test ‹id›` | `POST /api/v1/webhooks/{id}/test` | Dispatches a synthetic webhook delivery |
-| `/webhooks enable ‹id›` | `PUT /api/v1/webhooks/{id}` | Enables a webhook subscription |
-| `/webhooks disable ‹id›` | `PUT /api/v1/webhooks/{id}` | Disables a webhook subscription |
-| `/webhooks delete ‹id›` | `DELETE /api/v1/webhooks/{id}` | Deletes a webhook subscription |
-| `/webhooks rotate ‹id›` | `POST /api/v1/webhooks/{id}/rotate` | Rotates a webhook signing secret |
 
 Mutating REPL workflows such as `/config edit`, `/roles update`, and most schedule management remain REPL-first by design. The narrow `PATCH /api/v1/config/context` route is the exception for safe context toggles that still require restart.
 
@@ -5390,27 +4702,12 @@ Mutating REPL workflows such as `/config edit`, `/roles update`, and most schedu
 | `DELETE` | `/api/v1/projects/{idOrSlug}` | Yes | Delete archived project |
 | `POST` | `/api/v1/projects/{idOrSlug}/archive` | Yes | Archive project |
 | `POST` | `/api/v1/projects/{idOrSlug}/activate` | Yes | Activate project |
-| `GET` | `/api/v1/projects/{idOrSlug}/sprints` | Yes | List project sprints |
-| `POST` | `/api/v1/projects/{idOrSlug}/sprints` | Yes | Create sprint |
-| `GET` | `/api/v1/sprints/{id}` | Yes | Get sprint detail |
-| `PATCH` | `/api/v1/sprints/{id}` | Yes | Update sprint |
-| `DELETE` | `/api/v1/sprints/{id}` | Yes | Delete planned sprint |
-| `POST` | `/api/v1/sprints/{id}/start` | Yes | Start sprint |
-| `POST` | `/api/v1/sprints/{id}/submit-review` | Yes | Submit sprint for review |
-| `POST` | `/api/v1/sprints/{id}/complete` | Yes | Complete sprint |
-| `POST` | `/api/v1/sprints/{id}/reject` | Yes | Reject sprint |
 | `GET` | `/api/v1/tasks/{id}/events` | Yes | Stream task events (SSE) |
 | `POST` | `/api/v1/tasks/{id}/input` | Yes | Inject input into running task |
 | `POST` | `/api/v1/tasks/{id}/cancel` | Yes | Cancel a task |
 | `GET` | `/api/v1/projects` | Yes | List projects |
 | `GET` | `/api/v1/projects/{idOrSlug}` | Yes | Get project detail |
-| `GET` | `/api/v1/projects/{idOrSlug}/sprints` | Yes | List sprints for a project |
-| `GET` | `/api/v1/sprints/{id}` | Yes | Get sprint detail |
-| `GET` | `/api/v1/evaluations` | Yes | List saved evaluation reports |
-| `GET` | `/api/v1/evaluations/stats` | Yes | Get evaluation aggregates |
-| `GET` | `/api/v1/evaluations/{id}` | Yes | Get evaluation detail |
 | `GET` | `/api/v1/server/stats` | Yes | Database and server statistics |
-| `GET` | `/api/v1/server/quality` | Yes | Quality and health summary |
 | `GET` | `/api/v1/server/info` | Yes | Server capabilities and commands |
 | `POST` | `/api/v1/server/restart` | Yes | Restart a launcher-managed API process |
 | `GET` | `/api/v1/server/commands` | Yes | Get runtime slash-command metadata (`/help` equivalent) |
@@ -5436,23 +4733,7 @@ Mutating REPL workflows such as `/config edit`, `/roles update`, and most schedu
 | `GET` | `/api/v1/mcp/servers/{name}/tools` | Yes | List discovered tools for one MCP server |
 | `GET` | `/api/v1/mcp/tools/search` | Yes | Search discovered MCP tools |
 | `POST` | `/api/v1/mcp/servers/{name}/env` | Yes | Link env config to an MCP server |
-| `POST` | `/api/v1/mcp/servers/{name}/auth` | Yes | Run browser-based OAuth for an MCP server |
-| `GET` | `/api/v1/channels` | Yes | List channels with runtime state |
-| `POST` | `/api/v1/channels` | Yes | Create a channel instance |
-| `GET` | `/api/v1/channels/drivers` | Yes | List registered channel drivers |
-| `GET` | `/api/v1/channels/{id}` | Yes | Get one channel instance |
-| `PATCH` | `/api/v1/channels/{id}` | Yes | Update a channel instance |
-| `DELETE` | `/api/v1/channels/{id}` | Yes | Delete a channel instance |
-| `POST` | `/api/v1/channels/{id}/enable` | Yes | Enable a channel instance |
-| `POST` | `/api/v1/channels/{id}/disable` | Yes | Disable a channel instance |
-| `POST` | `/api/v1/channels/{id}/test` | Yes | Reconcile and refresh a channel instance |
-| `GET` | `/api/v1/channels/{id}/health` | Yes | Get channel health |
-| `GET` | `/api/v1/channels/{id}/links` | Yes | List channel identity links |
-| `POST` | `/api/v1/channels/{id}/links` | Yes | Create a channel identity link |
-| `DELETE` | `/api/v1/channels/{id}/links/{linkId}` | Yes | Delete a channel identity link |
-| `GET` | `/api/v1/channels/{id}/conversations` | Yes | List stored channel conversations |
-| `GET` | `/api/v1/channels/{id}/events` | Yes | List stored inbound channel events |
-| `GET` | `/api/v1/channels/{id}/deliveries` | Yes | List stored channel deliveries |
+| `POST` | `/api/v1/mcp/servers/{name}/auth` | Yes | Run browser-based OAuth for an MCP server (requires optional `coquibot/coqui-toolkit-mcp-client`) |
 | `GET` | `/api/v1/schedules` | Yes | List schedules |
 | `GET` | `/api/v1/schedules/{id}` | Yes | Get schedule |
 | `POST` | `/api/v1/schedules` | Yes | Create schedule |
@@ -5464,6 +4745,10 @@ Mutating REPL workflows such as `/config edit`, `/roles update`, and most schedu
 | `POST` | `/api/v1/loops` | Yes | Create and start a loop |
 | `GET` | `/api/v1/loops` | Yes | List loops |
 | `GET` | `/api/v1/loops/definitions` | Yes | List loop definitions |
+| `GET` | `/api/v1/loops/definitions/{name}` | Yes | Get one raw loop definition |
+| `POST` | `/api/v1/loops/definitions` | Yes | Create a loop definition |
+| `PUT` | `/api/v1/loops/definitions/{name}` | Yes | Upsert a loop definition |
+| `DELETE` | `/api/v1/loops/definitions/{name}` | Yes | Delete a loop definition |
 | `GET` | `/api/v1/loops/{id}` | Yes | Get loop details |
 | `PATCH` | `/api/v1/loops/{id}` | Yes | Update editable loop fields |
 | `DELETE` | `/api/v1/loops/{id}` | Yes | Delete a terminal loop |
@@ -5474,34 +4759,10 @@ Mutating REPL workflows such as `/config edit`, `/roles update`, and most schedu
 | `GET` | `/api/v1/loops/{id}/iterations` | Yes | List loop iterations |
 | `GET` | `/api/v1/loops/{id}/iterations/{iterationId}` | Yes | Get iteration with stages |
 | `POST` | `/api/v1/loops/{id}/iterations/{iterationId}/retry` | Yes | Retry the latest failed iteration |
-| `POST` | `/api/v1/webhooks/incoming/{name}` | No* | Receive webhook (signature-verified) |
-| `GET` | `/api/v1/webhooks` | Yes | List webhook subscriptions |
-| `POST` | `/api/v1/webhooks` | Yes | Create webhook subscription |
-| `GET` | `/api/v1/webhooks/{id}` | Yes | Get webhook |
-| `PUT` | `/api/v1/webhooks/{id}` | Yes | Update webhook |
-| `DELETE` | `/api/v1/webhooks/{id}` | Yes | Delete webhook |
-| `POST` | `/api/v1/webhooks/{id}/rotate` | Yes | Rotate signing secret |
-| `GET` | `/api/v1/webhooks/{id}/deliveries` | Yes | List delivery logs |
-| `GET` | `/api/v1/webhooks/{id}/deliveries/{deliveryId}` | Yes | Get one delivery log with linked task details |
-| `POST` | `/api/v1/webhooks/{id}/test` | Yes | Dispatch a synthetic test delivery |
 | `POST` | `/api/v1/sessions/{id}/artifacts` | Yes | Create artifact |
 | `GET` | `/api/v1/sessions/{id}/artifacts` | Yes | List artifacts |
 | `GET` | `/api/v1/sessions/{id}/artifacts/{artifactId}` | Yes | Get artifact |
 | `PATCH` | `/api/v1/sessions/{id}/artifacts/{artifactId}` | Yes | Update artifact metadata or content |
 | `DELETE` | `/api/v1/sessions/{id}/artifacts/{artifactId}` | Yes | Delete artifact |
-| `GET` | `/api/v1/sessions/{id}/artifacts/{artifactId}/versions` | Yes | List artifact versions |
-| `POST` | `/api/v1/sessions/{id}/artifacts/{artifactId}/versions` | Yes | Create artifact version |
-| `POST` | `/api/v1/sessions/{id}/artifacts/{artifactId}/versions/{versionId}/restore` | Yes | Restore artifact version |
-| `POST` | `/api/v1/sessions/{id}/todos` | Yes | Create todo |
-| `GET` | `/api/v1/sessions/{id}/todos` | Yes | List todos |
-| `GET` | `/api/v1/sessions/{id}/todos/stats` | Yes | Get todo statistics |
-| `PATCH` | `/api/v1/sessions/{id}/todos/bulk` | Yes | Bulk update todos |
-| `POST` | `/api/v1/sessions/{id}/todos/reorder` | Yes | Reorder todos |
-| `GET` | `/api/v1/sessions/{id}/todos/{todoId}` | Yes | Get todo detail |
-| `PATCH` | `/api/v1/sessions/{id}/todos/{todoId}` | Yes | Update todo |
-| `DELETE` | `/api/v1/sessions/{id}/todos/{todoId}` | Yes | Delete todo |
-| `POST` | `/api/v1/sessions/{id}/todos/{todoId}/complete` | Yes | Complete todo |
-| `POST` | `/api/v1/sessions/{id}/todos/{todoId}/reopen` | Yes | Reopen todo |
-| `POST` | `/api/v1/sessions/{id}/todos/{todoId}/cancel` | Yes | Cancel todo |
 
-Mutation-heavy workflows for roles, summarization, and update continue to live primarily in the REPL and agent tool layer. API restart and channel CRUD now expose explicit restart-state metadata over HTTP for app clients.
+Mutation-heavy workflows for roles, summarization, and update continue to live primarily in the REPL and agent tool layer. API restart now exposes explicit restart-state metadata over HTTP for app clients.

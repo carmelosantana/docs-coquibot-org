@@ -17,7 +17,7 @@ Join the [Discord community](https://discord.gg/TaCpZVqbbT) to follow along, ask
 - **Fast load times** — cold boot in ~78 ms with OPcache and JIT.
 - **Low memory footprint** — 10–30 MB per process, even with dozens of tools loaded.
 - **Scheduled tasks & background processes** — cron-style automation and isolated long-running agents that work while you don't.
-- **Project management built in** — projects, sprints, todos, versioned artifacts, and multi-iteration loops for structured work of any kind.
+- **Lean projects built in** — named working scopes backed by workspace directories, plus versioned artifacts and multi-iteration loops for structured work of any kind.
 
 ## Why PHP?
 
@@ -36,7 +36,6 @@ Join the [Discord community](https://discord.gg/TaCpZVqbbT) to follow along, ask
 - 🔐 [**Credential Management**](https://github.com/AgentCoqui/coqui/blob/main/docs/FEATURES.md#credential-management) — declarative `.env`-based secrets with hot-reload and automatic guards
 - 📋 [**Skills System**](https://github.com/AgentCoqui/coqui/blob/main/docs/FEATURES.md#skills-system) — teach Coqui any workflow with plain Markdown files — no code required
 - ⏰ [**Scheduled Tasks**](https://github.com/AgentCoqui/coqui/blob/main/docs/FEATURES.md#scheduled-tasks) — cron-style automation with circuit breakers
-- 📨 [**Channels**](https://github.com/AgentCoqui/coqui/blob/main/docs/FEATURES.md#channels) — Signal-backed external messaging with API-managed inbound and outbound delivery
 - 🏗️ [**Background Tasks**](https://github.com/AgentCoqui/coqui/blob/main/docs/FEATURES.md#background-tasks) — isolated processes for long-running work
 - 🔁 [**Loops**](https://github.com/AgentCoqui/coqui/blob/main/docs/FEATURES.md#loops) — fully automated multi-iteration workflows chaining roles in sequence
 - 🧩 [**Cognitive Flexibility**](https://github.com/AgentCoqui/coqui/blob/main/docs/FEATURES.md#cognitive-flexibility) — creative muse and philosopher roles, diverge-converge loops, sketch/hypothesis artifacts
@@ -126,8 +125,6 @@ Alternatively, use the `--dev` flag with the installer to clone and set up in on
 
 `./bin/coqui` is the main entry point. It starts the launcher-managed app: REPL in the foreground plus the API server in the background on port 3300.
 
-Use `./bin/coqui-launcher` when you want the explicit launcher name. Both entry points share the same launcher-managed behavior.
-
 The launcher-managed app handles:
 
 - **Clean exit** (exit code 0) — `/quit` stops the launcher and all background services
@@ -169,7 +166,7 @@ Once you're in the REPL:
 1. **Have a conversation** — ask questions, request code changes, or describe a task
 2. **Try a different role** — `/role coder` for focused coding, `/role plan` for structured planning
 3. **Extend with mods** — browse [agentcoqui.com](https://agentcoqui.com), install with `/mods install ‹package›`, then restart Coqui to activate newly discovered tools and toolkit-provided REPL commands
-4. **Run API-only mode when needed** — `coqui --api-only` or `./bin/coqui-launcher --api-only`
+4. **Run API-only mode when needed** — `coqui --api-only`
 5. **Explore models** — map roles to models in `openclaw.json` for cost-optimized routing
 
 See [docs/ROLES.md](/features/roles) for all built-in roles and [docs/COMMANDS.md](/guides/commands) for the full command reference.
@@ -206,7 +203,6 @@ See [docs/COMMANDS.md](/guides/commands) for the full CLI reference including `a
 | `/image` | Generate and manage workspace images |
 | `/projects` | List projects or switch the active project |
 | `/tasks [status]` | List background tasks |
-| `/todos [status]` | Show session todos |
 | `/schedules` | List scheduled tasks |
 | `/loops` | List and manage automated loops |
 | `/mods` | Mods marketplace via the external manager toolkit |
@@ -331,12 +327,11 @@ Coqui ships with a rich set of tools organized into toolkits:
 | **Shell** | `exec` | Run shell commands (open by default; opt-in allowlist via `shellAllowedCommands`, `cwd` support) |
 | **Code** | `php_execute` | Execute PHP in a sandboxed subprocess |
 | **Memory** | `memory_save`, `memory_search` | Persistent cross-session memory |
-| **Background** | `start_background_task`, `start_background_tool` | Isolated processes for long-running work |
-| **Planning** | `artifact_create`, `todo_add` | Versioned artifacts and task tracking |
-| **Scheduling** | `schedule_create`, `webhook_create` | Cron-style automation and incoming webhooks |
+| **Planning** | `artifact_create` | Versioned artifacts |
+| **Projects** | `project_create`, `project_switch` | Lean working scopes backed by workspace directories |
+| **Scheduling** | `schedule_create` | Cron-style automation |
 | **Loops** | `loop_start`, `loop_status`, `loop_definitions` | Automated multi-iteration workflows chaining roles |
 | **Vision** | `vision_analyze` | Multi-provider image analysis |
-| **Packages** | `composer`, `packagist` | Dependency management and package search |
 | **Credentials** | `credentials` | Secure `.env`-based secret storage |
 
 Toolkits from the [Coqui Mods marketplace](https://agentcoqui.com) and local workspace packages add more: GitHub, Brave Search, browser automation, Canva, Cloudflare, image generation, and more.
@@ -499,11 +494,10 @@ docker compose run --rm -v ./openclaw.json:/app/openclaw.json:ro coqui
 | [Commands](/guides/commands) | REPL slash commands and CLI reference |
 | [Roles](/features/roles) | Built-in roles, access levels, and custom role creation |
 | [Configuration](/guides/configuration) | `openclaw.json` reference |
-| [Channels](/features/channels) | Signal channel setup, linking, and end-to-end testing |
 | [API](/guides/api) | Canonical HTTP API reference and client integration guide |
 | [Background Tasks](/guides/background-tasks) | Background task architecture and usage |
 | [Loops](/features/loops) | Loop definitions, runtime model, and inspection |
-| [Todos](/features/todos) | Planning and todo workflow |
+| [Projects](/features/projects) | Lean project working scopes |
 | [Artifacts](/features/artifacts) | Artifact lifecycle and versioning |
 | [Testing](/development/testing) | Test layout, local commands, coverage, and PCOV/Xdebug setup |
 | [Toolkits](/guides/extending) | Creating toolkit packages |

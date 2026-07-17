@@ -11,7 +11,7 @@ Fully automated, multi-role iteration cycles that run hands-off until a terminat
 
 ## Overview
 
-A loop strings together existing agent roles in sequence — each role processes the output of the previous one — and repeats until the work is approved, a limit is reached, or time runs out. Loops are completely autonomous: no human approval, no manual iteration.
+A loop strings together existing agent roles in sequence — each role processes the output of the previous one — and repeats until the work is approved, the goal is judged met, or the iteration limit is reached. Loops are completely autonomous: no human approval, no manual iteration.
 
 The most common pattern is **generator-evaluator**: a plan agent designs, a coder implements, a reviewer approves or rejects, and the cycle repeats until the reviewer says "APPROVED".
 
@@ -53,14 +53,25 @@ loop_start(
 loop_start(definition: "harness", goal: "...", max_iterations: 3)
 ```
 
+### Headless Start
+
+A loop can also start with no conversation. Post just a definition and goal to the API:
+
+```
+POST /api/v1/loops
+{ "definition": "harness", "goal": "Build a Redis caching layer for the API" }
+```
+
+With no `session_id`, Coqui auto-provisions a hidden, loop-owned work-scope session whose active project is the loop's project. This restores the same project propagation and cross-stage artifact scoping that chat-started loops get (see [Session Context Propagation](#session-context-propagation)). Headless loops record `metadata.origin: "headless"` (conversation-started loops record `"conversation"`), surfaced on the loop read endpoints as `origin` and a derived `headless` flag — see [docs/API.md](/guides/api).
+
 ## How a Loop Executes
 
 ```
 loop_start(definition: "harness", goal: "Build caching layer")
   ↓
 LoopExecutor:
-  1. Validates parameters, auto-creates a project
-  2. Creates loop record → first iteration → sprint → stage records
+  1. Validates parameters, resolves or auto-creates a project
+  2. Creates loop record → first iteration → stage records
   ↓
 Iteration 1:
   Stage 0: plan (role: plan)
@@ -98,11 +109,12 @@ This gives each agent full context of where the loop is, what happened before, a
 | Type | Trigger | Example |
 | --- | --- | --- |
 | `evaluation_bound` | Last stage output contains an approval keyword | Reviewer responds "APPROVED" |
-| `iteration_bound` | N iterations completed | `max_iterations: 5` |
-| `time_bound` | Wall-clock time elapsed | `value: 3600` (1 hour) |
-| `manual` | Explicitly stopped by user/agent | `loop_control(action: "stop", id: ...)` |
+| `iteration_bound` | N iterations completed | `value: 5` |
+| `goal_bound` | An LLM judges the goal achieved from the last stage output | `value: { goal_prompt, max_iterations }` |
 
-For `evaluation_bound`, the executor scans the last stage's output for approval signals (`approved`, `lgtm`, `looks good`, `accepted`, `passes all criteria`) while cross-checking against rejection signals to avoid false positives.
+A loop can always be stopped explicitly with `loop_control(action: "stop", id: ...)` regardless of its termination type.
+
+For `evaluation_bound`, the executor scans the last stage's output for approval signals (`approved`, `lgtm`, `looks good`, `accepted`, `passes all criteria`) while cross-checking against rejection signals to avoid false positives. For `goal_bound`, the executor asks the utility LLM whether the goal is met; if no utility model is configured, the loop runs to its `max_iterations` limit.
 
 ## Loop Lifecycle
 
@@ -129,10 +141,12 @@ OrchestratorAgent sessionId
       → loops.session_id
         → LoopStageResult.sessionId
           → LoopManager.advanceLoop()
-            → ArtifactToolkit, TodoToolkit, SprintToolkit
+            → ArtifactToolkit
 ```
 
-This means stage agents can read and create artifacts, track todos, and update sprint progress — all within the parent session's context. After each successful stage, `LoopManager` creates a `loop_output` artifact with the stage's result.
+This means stage agents can read and create artifacts — all within the parent session's context. After each successful stage, `LoopManager` creates a `loop_output` artifact with the stage's result.
+
+For headless loops (started with no conversation), `LoopExecutor::startLoop` provisions a hidden loop-owned session up front and sets its active project, so `loops.session_id` is non-null and this same propagation chain applies unchanged.
 
 ## Stage Agent Capabilities
 
@@ -145,22 +159,26 @@ Stage agents receive toolkits based on their role's access level:
 | `readonly` (e.g., plan, reviewer) | Read-only files only |
 | `minimal` | No toolkits |
 
-All access levels receive: `ArtifactToolkit`, `TodoToolkit`, `SprintToolkit`, and `SkillToolkit` (except minimal).
+All access levels receive: `ArtifactToolkit` and `SkillToolkit` (except minimal).
 
 ### Excluded from Stage Agents
 
 Stage agents intentionally do **not** receive:
 
 - `LoopToolkit` — prevents infinite loop recursion
-- `BackgroundTaskToolkit` — prevents uncontrolled process spawning
 - `ScheduleToolkit` — prevents unbounded schedule creation
-- `WebhookToolkit` — prevents uncontrolled webhook registration
 
 This is an architectural constraint, not configuration — these toolkits are only constructed by `OrchestratorAgent` and never passed to loop stages.
 
 ## Custom Loop Definitions
 
-Create JSON files in `workspace/loops/`:
+Create JSON files in `workspace/loops/` — either by hand, or over the API with
+full CRUD (`GET`/`POST`/`PUT`/`DELETE /api/v1/loops/definitions[/{name}]`; see
+[API.md](/guides/api)). The definition name must match `^[a-z0-9][a-z0-9_-]*$` and
+becomes the filename. Built-in definitions are editable and deletable like any
+other; a deleted built-in re-seeds from `config/loops/` on the next boot.
+
+Example file:
 
 ```json
 {
@@ -224,6 +242,17 @@ loop_status(id: "loop123")
 
 Returns: current iteration/stage, status, elapsed time, and stage results.
 
+### Observing a Running Loop
+
+For a live, poll-friendly view of an in-flight loop, use
+`GET /api/v1/loops/{id}/live`. It returns the loop's current stage and model, its
+consumption budget (tokens, iterations, elapsed/remaining time), a per-stage
+breakdown, and a newest-first feed of recent activity — everything a dashboard or
+status poller needs in one call. It is a pure read-model over existing loop, task,
+turn, and event data. See [API.md](/guides/api) for the full response shape.
+
+- `GET /api/v1/loops/{id}/events` streams SSE nudges (`connected`, `stage_changed`, `activity`, `done`) so clients can watch a running loop live and refetch `/loops/{id}/live` on each signal.
+
 ### Pause and Resume
 
 ```
@@ -257,10 +286,16 @@ loop_control(action: "stop", id: "all")         # Cancels every active loop
 | `GET` | `/api/v1/loops` | List loops |
 | `GET` | `/api/v1/loops/active/count` | Count running loops |
 | `POST` | `/api/v1/loops` | Create/start a loop |
-| `GET` | `/api/v1/loops/definitions` | List definitions |
+| `GET` | `/api/v1/loops/definitions` | List definitions (each flagged `builtin`) |
+| `GET` | `/api/v1/loops/definitions/{name}` | Get one raw definition |
+| `POST` | `/api/v1/loops/definitions` | Create a definition (409 if it exists) |
+| `PUT` | `/api/v1/loops/definitions/{name}` | Upsert a definition |
+| `DELETE` | `/api/v1/loops/definitions/{name}` | Delete a definition |
 | `GET` | `/api/v1/loops/{id}` | Get loop details |
 | `GET` | `/api/v1/loops/{id}/history` | Get full loop iteration history |
 | `GET` | `/api/v1/loops/{id}/metrics` | Get aggregate loop metrics |
+| `GET` | `/api/v1/loops/{id}/live` | Get rich live snapshot (current stage, model, budget, events) |
+| `GET` | `/api/v1/loops/{id}/events` | SSE stream of live nudges (`connected`, `stage_changed`, `activity`, `done`) |
 | `PATCH` | `/api/v1/loops/{id}` | Update editable loop fields |
 | `DELETE` | `/api/v1/loops/{id}` | Delete a loop |
 | `POST` | `/api/v1/loops/{id}/pause` | Pause loop |
@@ -302,5 +337,4 @@ Both modes use `LoopExecutor` as the shared orchestration engine for state manag
 
 - [DATA_FLOW.md](/features/data-flow) — How all components connect
 - [ARTIFACTS.md](/features/artifacts) — Artifacts created by loop stages
-- [TODOS.md](/features/todos) — Todos that loop stages can track
 - [PROJECTS.md](/features/projects) — Projects auto-created by loops

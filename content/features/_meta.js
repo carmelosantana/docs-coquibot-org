@@ -4,7 +4,8 @@ export default {
   "chat": "Chat Flow",
   "data-flow": "Data Flow",
   "loops": "Loops",
-  "projects": "Projects and Sprints",
+  "questions": "Structured Questions",
+  "projects": "Projects",
   "roles": "Roles",
   "profiles": "Profiles",
 }

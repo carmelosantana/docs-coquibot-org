@@ -13,6 +13,8 @@
  *   - Sync only explicitly mapped Markdown docs from coqui/docs
  *   - Sync only explicitly curated examples from coqui/examples
  *   - Exclude php-agents, Postman collections, and other non-curated assets
+ *   - Take page title/description from the source doc's frontmatter, overriding
+ *     locally only where the site needs different copy from the repo
  *   - Strip source frontmatter and generate Nextra frontmatter locally
  *   - Rewrite internal source links to local routes when a page exists
  *   - Rewrite other repository-relative links to GitHub URLs
@@ -39,7 +41,13 @@ const forceSync = process.env.COQUI_SYNC_DOCS === '1'
 const watchMode = process.argv.includes('--watch')
 const skipInitial = process.argv.includes('--skip-initial')
 
-const EXCLUDED_DOC_FILES = new Set(['AGENTS.md', 'CLAUDE.md'])
+// Docs in coqui/docs that are deliberately not published, with the reason.
+// Anything here that is not excluded must be routed in DOC_ROUTES, or
+// validateSourceDocs throws — that is what keeps this table from rotting.
+const EXCLUDED_DOC_FILES = new Map([
+  ['AGENTS.md', 'agent instructions for the core repo, not user-facing docs'],
+  ['CLAUDE.md', 'agent instructions for the core repo, not user-facing docs'],
+])
 const WATCHABLE_EXTENSIONS = new Set(['.md', '.json', '.php'])
 const SECTION_DIRS = [
   '',
@@ -70,140 +78,129 @@ function examplePath(...parts) {
   return path.join(coquiExamples, ...parts)
 }
 
+// Routing decisions only. Page title and description come from the source
+// doc's own frontmatter (see resolveRouteMetadata); set titleOverride or
+// descriptionOverride only where the site needs different copy from the repo.
 const DOC_ROUTES = [
   {
     sourcePath: repoPath('docs', 'FEATURES.md'),
     dest: 'features/index.mdx',
-    title: 'Features',
-    description: 'Comprehensive guide to everything Coqui can do.',
+    // Frontmatter says "Coqui Features"; the "Coqui" prefix is redundant in-site.
+    titleOverride: 'Features',
     section: 'features',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'ARTIFACTS.md'),
     dest: 'features/artifacts.mdx',
-    title: 'Artifacts',
-    description: 'Versioned artifacts for plans, docs, and other structured outputs.',
     section: 'features',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'CHAT.md'),
     dest: 'features/chat.mdx',
-    title: 'Chat Flow',
-    description: 'How chat requests move through Coqui execution and storage.',
     section: 'features',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'DATA_FLOW.md'),
     dest: 'features/data-flow.mdx',
-    title: 'Data Flow',
-    description: 'How projects, todos, artifacts, loops, and storage connect.',
     section: 'features',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'LOOPS.md'),
     dest: 'features/loops.mdx',
-    title: 'Loops',
-    description: 'Automated multi-role iteration cycles and loop lifecycle.',
+    section: 'features',
+    render: 'markdown',
+  },
+  {
+    sourcePath: repoPath('docs', 'QUESTIONS.md'),
+    dest: 'features/questions.mdx',
     section: 'features',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'PROJECTS.md'),
     dest: 'features/projects.mdx',
-    title: 'Projects and Sprints',
-    description: 'Persistent project context and sprint organization in Coqui.',
     section: 'features',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'ROLES.md'),
     dest: 'features/roles.mdx',
-    title: 'Roles',
-    description: 'Built-in agent roles, access levels, and custom role creation.',
+    // Frontmatter says "Roles Reference"; the sidebar reads better unsuffixed.
+    titleOverride: 'Roles',
     section: 'features',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'PROFILES.md'),
     dest: 'features/profiles.mdx',
-    title: 'Profiles',
-    description: 'Personality profiles and customization.',
+    // Frontmatter says "Personality Profiles"; the sidebar label stays short.
+    titleOverride: 'Profiles',
     section: 'features',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'COMMANDS.md'),
     dest: 'guides/commands.mdx',
-    title: 'Commands',
-    description: 'REPL slash commands and CLI subcommands reference.',
+    // Frontmatter says "Commands Reference"; the sidebar reads better unsuffixed.
+    titleOverride: 'Commands',
     section: 'guides',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'CONFIGURATION.md'),
     dest: 'guides/configuration.mdx',
-    title: 'Configuration',
-    description: 'openclaw.json configuration reference and setup.',
     section: 'guides',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'API.md'),
     dest: 'guides/api.mdx',
-    title: 'HTTP API',
-    description: 'Complete HTTP API reference for the Coqui server.',
+    // Frontmatter says "Coqui HTTP API"; the "Coqui" prefix is redundant in-site.
+    titleOverride: 'HTTP API',
     section: 'guides',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'BACKGROUND-TASKS.md'),
     dest: 'guides/background-tasks.mdx',
-    title: 'Background Tasks',
-    description: 'Run long-running agent work in separate processes.',
     section: 'guides',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'SKILLS.md'),
     dest: 'guides/skills.mdx',
-    title: 'Skills',
-    description: 'Create reusable instruction sets in plain Markdown.',
+    // Frontmatter says "Coqui Skills"; the "Coqui" prefix is redundant in-site.
+    titleOverride: 'Skills',
     section: 'guides',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'TOOLKITS.md'),
     dest: 'guides/extending.mdx',
-    title: 'Creating Toolkits',
-    description: 'Build and distribute Composer packages that extend Coqui.',
+    // Frontmatter says "Coqui Toolkits"; this guide is about building them.
+    titleOverride: 'Creating Toolkits',
     section: 'guides',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'TESTING.md'),
     dest: 'development/testing.mdx',
-    title: 'Testing',
-    description: 'Test strategy, commands, and validation workflow.',
     section: 'development',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'TOOLKIT-EXTENSIBILITY.md'),
     dest: 'development/toolkit-extensibility.mdx',
-    title: 'Toolkit Extensibility',
-    description: 'Expose toolkit-provided REPL commands and extensions.',
     section: 'development',
     render: 'markdown',
   },
   {
     sourcePath: repoPath('docs', 'GITHUB-ACTIONS.md'),
     dest: 'development/ci.mdx',
-    title: 'GitHub Actions',
-    description: 'CI workflow for tests and static analysis.',
     section: 'development',
     render: 'markdown',
   },
@@ -364,6 +361,45 @@ function readText(filePath) {
 
 function stripFrontmatter(content) {
   return content.replace(/^---\n[\s\S]*?\n---\n*/u, '')
+}
+
+function unquoteYamlScalar(raw) {
+  const value = raw.trim()
+  if (value.length < 2) {
+    return value
+  }
+
+  if (value.startsWith('"') && value.endsWith('"')) {
+    return value.slice(1, -1).replace(/\\(["\\])/g, '$1')
+  }
+
+  if (value.startsWith("'") && value.endsWith("'")) {
+    return value.slice(1, -1).replace(/''/g, "'")
+  }
+
+  return value
+}
+
+/**
+ * Reads the top-level scalar keys of a source doc's YAML frontmatter.
+ * Deliberately minimal: the docs only carry flat `key: value` pairs, so this
+ * avoids a YAML dependency. Values may be quoted and may contain colons.
+ */
+function parseFrontmatter(content) {
+  const match = content.match(/^---\n([\s\S]*?)\n---/u)
+  if (!match) {
+    return {}
+  }
+
+  const fields = {}
+  for (const line of match[1].split('\n')) {
+    const field = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/)
+    if (field) {
+      fields[field[1]] = unquoteYamlScalar(field[2])
+    }
+  }
+
+  return fields
 }
 
 function stripLeadingH1(content) {
@@ -769,6 +805,33 @@ function validateSourceDocs() {
   }
 }
 
+/**
+ * Resolves each doc route's title/description from the source doc's own
+ * frontmatter, so the same metadata is not restated here and left to drift.
+ * A route may set titleOverride/descriptionOverride where the site needs
+ * different copy from the repo (sidebar labels, mainly). Runs after
+ * validateSourceDocs so a missing source reports as a mapping error first.
+ */
+function resolveRouteMetadata() {
+  for (const route of DOC_ROUTES) {
+    const relative = path.relative(coquiRoot, route.sourcePath).replace(/\\/g, '/')
+    const front = parseFrontmatter(readText(route.sourcePath))
+    const title = route.titleOverride ?? front.title
+    const description = route.descriptionOverride ?? front.description
+
+    if (!title) {
+      throw new Error(`${relative} has no frontmatter title; add one or set titleOverride`)
+    }
+
+    if (!description) {
+      throw new Error(`${relative} has no frontmatter description; add one or set descriptionOverride`)
+    }
+
+    route.title = title
+    route.description = description
+  }
+}
+
 function pruneLegacyOutputs() {
   for (const relativePath of LEGACY_GENERATED_PATHS) {
     const fullPath = path.join(contentDir, relativePath)
@@ -785,6 +848,7 @@ function syncDocsOnce() {
   console.log('Syncing Coqui docs and examples to Nextra content/...\n')
 
   validateSourceDocs()
+  resolveRouteMetadata()
 
   for (const dir of SECTION_DIRS) {
     ensureDir(path.join(contentDir, dir))

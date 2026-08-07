@@ -195,7 +195,7 @@ All components share data through **session ID propagation**. When one agent spa
 
 When a project is active (set via `/projects ‹slug›` or `project_switch`), its metadata and working directory are injected into the system prompt. This gives all agents ambient awareness of the current project without explicit tool calls.
 
-See [PROJECTS.md](https://github.com/AgentCoqui/coqui/blob/main/docs/PROJECTS.md#active-project-context) for details.
+See [PROJECTS.md](https://github.com/carmelosantana/coqui/blob/main/docs/PROJECTS.md#active-project-context) for details.
 
 ## Cleanup Lifecycle
 
@@ -209,7 +209,7 @@ gives it a longer life.
 | Loops | Manual or loop completion | Loop records persist (no FK on `loops.session_id`); iterations and stages cascade with the loop |
 | Projects | Manual | Deleting a project leaves its artifacts and loops in place — neither link is a constraint |
 
-See [ARTIFACTS.md](https://github.com/AgentCoqui/coqui/blob/main/docs/ARTIFACTS.md#retention-ownership-based) for the retention rules
+See [ARTIFACTS.md](https://github.com/carmelosantana/coqui/blob/main/docs/ARTIFACTS.md#retention-ownership-based) for the retention rules
 themselves; this table covers only how they play out across components.
 
 ## Further Reading
@@ -217,4 +217,4 @@ themselves; this table covers only how they play out across components.
 - [PROJECTS.md](/features/projects) — Projects as working scopes: creation and lifecycle
 - [ARTIFACTS.md](/features/artifacts) — Artifacts as files: creation, retention, and plan handoff
 - [LOOPS.md](/features/loops) — Automated workflows: definitions, termination, and session context
-- [AGENTS.md](https://github.com/AgentCoqui/coqui/blob/main/AGENTS.md) — Contributor guide: project model, coding boundaries, and workflow
+- [AGENTS.md](https://github.com/carmelosantana/coqui/blob/main/AGENTS.md) — Contributor guide: project model, coding boundaries, and workflow

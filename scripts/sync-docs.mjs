@@ -34,7 +34,7 @@ const coquiRoot = path.resolve(process.env.COQUI_REPO_ROOT || defaultCoquiRoot)
 const coquiDocs = path.join(coquiRoot, 'docs')
 const coquiExamples = path.join(coquiRoot, 'examples')
 const coquiReadme = path.join(coquiRoot, 'README.md')
-const coquiRepoUrl = (process.env.COQUI_REPO_URL || 'https://github.com/AgentCoqui/coqui').replace(/\/$/, '')
+const coquiRepoUrl = (process.env.COQUI_REPO_URL || 'https://github.com/carmelosantana/coqui').replace(/\/$/, '')
 
 const isVercel = process.env.VERCEL === '1'
 const forceSync = process.env.COQUI_SYNC_DOCS === '1'
@@ -57,7 +57,7 @@ const SECTION_DIRS = [
   'examples',
   'examples/toolkit',
   'examples/preferences',
-  'examples/profiles',
+  'examples/personas',
   'examples/skills',
 ]
 const LEGACY_GENERATED_PATHS = [
@@ -135,10 +135,8 @@ const DOC_ROUTES = [
     render: 'markdown',
   },
   {
-    sourcePath: repoPath('docs', 'PROFILES.md'),
-    dest: 'features/profiles.mdx',
-    // Frontmatter says "Personality Profiles"; the sidebar label stays short.
-    titleOverride: 'Profiles',
+    sourcePath: repoPath('docs', 'PERSONAS.md'),
+    dest: 'features/personas.mdx',
     section: 'features',
     render: 'markdown',
   },
@@ -239,7 +237,7 @@ const EXAMPLE_ROUTES = [
     section: 'examples/preferences',
     render: 'code-example',
     language: 'json',
-    lead: 'Copy this file into `profiles/your-profile/preferences.json` when you want an outcome-first operator.',
+    lead: 'Copy this file into `personas/your-profile/preferences.json` when you want an outcome-first operator.',
   },
   {
     sourcePath: examplePath('preferences', 'deliberate-operator.json'),
@@ -249,7 +247,7 @@ const EXAMPLE_ROUTES = [
     section: 'examples/preferences',
     render: 'code-example',
     language: 'json',
-    lead: 'Copy this file into `profiles/your-profile/preferences.json` when you want a deliberate operator profile.',
+    lead: 'Copy this file into `personas/your-profile/preferences.json` when you want a deliberate operator profile.',
   },
   {
     sourcePath: examplePath('preferences', 'review-heavy.json'),
@@ -259,7 +257,7 @@ const EXAMPLE_ROUTES = [
     section: 'examples/preferences',
     render: 'code-example',
     language: 'json',
-    lead: 'Copy this file into `profiles/your-profile/preferences.json` for a terse, review-focused operator.',
+    lead: 'Copy this file into `personas/your-profile/preferences.json` for a terse, review-focused operator.',
   },
   {
     sourcePath: examplePath('preferences', 'security-cautious.md'),
@@ -269,7 +267,7 @@ const EXAMPLE_ROUTES = [
     section: 'examples/preferences',
     render: 'code-example',
     language: 'md',
-    lead: 'Use this as `profiles/your-profile/security.md` when you want tighter approval boundaries.',
+    lead: 'Use this as `personas/your-profile/security.md` when you want tighter approval boundaries.',
   },
   {
     sourcePath: examplePath('preferences', 'security-high-autonomy.md'),
@@ -279,22 +277,22 @@ const EXAMPLE_ROUTES = [
     section: 'examples/preferences',
     render: 'code-example',
     language: 'md',
-    lead: 'Use this as `profiles/your-profile/security.md` when you want faster execution with explicit risk boundaries.',
+    lead: 'Use this as `personas/your-profile/security.md` when you want faster execution with explicit risk boundaries.',
   },
   {
-    sourcePath: examplePath('profiles', 'deliberate-operator', 'soul.md'),
+    sourcePath: examplePath('personas', 'deliberate-operator', 'soul.md'),
     aliases: [
-      examplePath('profiles', 'deliberate-operator'),
-      examplePath('profiles', 'deliberate-operator', 'backstory.md'),
-      examplePath('profiles', 'deliberate-operator', 'preferences.json'),
-      examplePath('profiles', 'deliberate-operator', 'security.md'),
-      examplePath('profiles', 'deliberate-operator', 'samples'),
-      examplePath('profiles', 'deliberate-operator', 'samples', 'responses', 'status-update.md'),
+      examplePath('personas', 'deliberate-operator'),
+      examplePath('personas', 'deliberate-operator', 'backstory.md'),
+      examplePath('personas', 'deliberate-operator', 'preferences.json'),
+      examplePath('personas', 'deliberate-operator', 'security.md'),
+      examplePath('personas', 'deliberate-operator', 'samples'),
+      examplePath('personas', 'deliberate-operator', 'samples', 'responses', 'status-update.md'),
     ],
-    dest: 'examples/profiles/deliberate-operator.mdx',
+    dest: 'examples/personas/deliberate-operator.mdx',
     title: 'Deliberate Operator',
     description: 'Complete profile example with soul, backstory, preferences, security, and sample response.',
-    section: 'examples/profiles',
+    section: 'examples/personas',
     render: 'profile-example',
   },
   {
@@ -319,7 +317,7 @@ const routesBySection = new Map([
 const exampleRoutesBySection = new Map([
   ['examples/toolkit', EXAMPLE_ROUTES.filter(route => route.section === 'examples/toolkit')],
   ['examples/preferences', EXAMPLE_ROUTES.filter(route => route.section === 'examples/preferences')],
-  ['examples/profiles', EXAMPLE_ROUTES.filter(route => route.section === 'examples/profiles')],
+  ['examples/personas', EXAMPLE_ROUTES.filter(route => route.section === 'examples/personas')],
   ['examples/skills', EXAMPLE_ROUTES.filter(route => route.section === 'examples/skills')],
 ])
 
@@ -637,12 +635,12 @@ function buildToolkitExamplePage(route) {
 }
 
 function buildProfileExamplePage(route) {
-  const profileDir = examplePath('profiles', 'deliberate-operator')
-  const sampleDir = examplePath('profiles', 'deliberate-operator', 'samples')
-  const backstoryPath = examplePath('profiles', 'deliberate-operator', 'backstory.md')
-  const preferencesPath = examplePath('profiles', 'deliberate-operator', 'preferences.json')
-  const securityPath = examplePath('profiles', 'deliberate-operator', 'security.md')
-  const sampleResponsePath = examplePath('profiles', 'deliberate-operator', 'samples', 'responses', 'status-update.md')
+  const profileDir = examplePath('personas', 'deliberate-operator')
+  const sampleDir = examplePath('personas', 'deliberate-operator', 'samples')
+  const backstoryPath = examplePath('personas', 'deliberate-operator', 'backstory.md')
+  const preferencesPath = examplePath('personas', 'deliberate-operator', 'preferences.json')
+  const securityPath = examplePath('personas', 'deliberate-operator', 'security.md')
+  const sampleResponsePath = examplePath('personas', 'deliberate-operator', 'samples', 'responses', 'status-update.md')
 
   const lines = [
     buildFrontmatter(route),
@@ -650,13 +648,13 @@ function buildProfileExamplePage(route) {
     '',
     '## Source Files',
     '',
-    `- ${markdownSourceLink(profileDir, 'examples/profiles/deliberate-operator/')}`,
-    `- ${markdownSourceLink(sampleDir, 'examples/profiles/deliberate-operator/samples/')}`,
-    `- ${markdownSourceLink(route.sourcePath, 'examples/profiles/deliberate-operator/soul.md')}`,
-    `- ${markdownSourceLink(backstoryPath, 'examples/profiles/deliberate-operator/backstory.md')}`,
-    `- ${markdownSourceLink(preferencesPath, 'examples/profiles/deliberate-operator/preferences.json')}`,
-    `- ${markdownSourceLink(securityPath, 'examples/profiles/deliberate-operator/security.md')}`,
-    `- ${markdownSourceLink(sampleResponsePath, 'examples/profiles/deliberate-operator/samples/responses/status-update.md')}`,
+    `- ${markdownSourceLink(profileDir, 'examples/personas/deliberate-operator/')}`,
+    `- ${markdownSourceLink(sampleDir, 'examples/personas/deliberate-operator/samples/')}`,
+    `- ${markdownSourceLink(route.sourcePath, 'examples/personas/deliberate-operator/soul.md')}`,
+    `- ${markdownSourceLink(backstoryPath, 'examples/personas/deliberate-operator/backstory.md')}`,
+    `- ${markdownSourceLink(preferencesPath, 'examples/personas/deliberate-operator/preferences.json')}`,
+    `- ${markdownSourceLink(securityPath, 'examples/personas/deliberate-operator/security.md')}`,
+    `- ${markdownSourceLink(sampleResponsePath, 'examples/personas/deliberate-operator/samples/responses/status-update.md')}`,
     '',
     '## soul.md',
     '',
@@ -765,12 +763,12 @@ function writeMetaFiles() {
   writeMetaFile('development/_meta.js', routesBySection.get('development').map(route => [slugForRoute(route), route.title]))
   writeMetaFile('examples/_meta.js', [
     ['toolkit', 'Toolkit'],
-    ['profiles', 'Profiles'],
+    ['personas', 'Profiles'],
     ['preferences', 'Preferences'],
     ['skills', 'Skills'],
   ])
   writeMetaFile('examples/toolkit/_meta.js', [['hello-toolkit', 'Hello Toolkit']])
-  writeMetaFile('examples/profiles/_meta.js', [['deliberate-operator', 'Deliberate Operator']])
+  writeMetaFile('examples/personas/_meta.js', [['deliberate-operator', 'Deliberate Operator']])
   writeMetaFile('examples/preferences/_meta.js', exampleRoutesBySection.get('examples/preferences').map(route => [slugForRoute(route), route.dest.endsWith('/index.mdx') ? 'Overview' : route.title]))
   writeMetaFile('examples/skills/_meta.js', [['say-hello', 'Say Hello']])
 }

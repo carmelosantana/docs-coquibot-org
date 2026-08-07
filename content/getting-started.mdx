@@ -17,7 +17,7 @@ curl -fsSL https://agentcoqui.com/install | bash
 Run the Windows bootstrap in PowerShell. It checks for WSL2, offers to install Ubuntu when needed, and then runs the standard Coqui installer inside WSL.
 
 ```powershell
-irm https://raw.githubusercontent.com/AgentCoqui/coqui-installer/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/carmelosantana/coqui-installer/main/install.ps1 | iex
 ```
 
 ### Update
@@ -26,15 +26,15 @@ Re-run the same install command. The installer detects an existing installation 
 
 ### Inspect before running
 
-- Linux / macOS / WSL2: [install.sh](https://raw.githubusercontent.com/AgentCoqui/coqui-installer/main/install.sh)
-- Windows bootstrap: [install.ps1](https://raw.githubusercontent.com/AgentCoqui/coqui-installer/main/install.ps1)
+- Linux / macOS / WSL2: [install.sh](https://raw.githubusercontent.com/carmelosantana/coqui-installer/main/install.sh)
+- Windows bootstrap: [install.ps1](https://raw.githubusercontent.com/carmelosantana/coqui-installer/main/install.ps1)
 
 ### Development Install
 
 Clone the repository and install dependencies manually. Requires PHP 8.4+, Composer 2.x, and Git.
 
 ```bash
-git clone https://github.com/AgentCoqui/coqui.git
+git clone https://github.com/carmelosantana/coqui.git
 cd coqui
 composer install
 ```

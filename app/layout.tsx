@@ -94,7 +94,7 @@ const logo = (
 const navbar = (
   <Navbar
     logo={logo}
-    projectLink="https://github.com/AgentCoqui/coqui"
+    projectLink="https://github.com/carmelosantana/coqui"
     chatLink="https://discord.gg/TaCpZVqbbT"
   />
 )
@@ -138,7 +138,7 @@ const footer = (
             Website
           </a>
           <a
-            href="https://github.com/AgentCoqui/coqui"
+            href="https://github.com/carmelosantana/coqui"
             target="_blank"
             rel="noopener noreferrer"
             className="coqui-shell-link"
@@ -194,7 +194,7 @@ export default async function RootLayout({
         <Layout
           navbar={navbar}
           pageMap={await getPageMap()}
-          docsRepositoryBase="https://github.com/AgentCoqui/coqui/tree/main/docs"
+          docsRepositoryBase="https://github.com/carmelosantana/coqui/tree/main/docs"
           footer={footer}
           editLink="Edit this page on GitHub"
           search={search}
@@ -203,7 +203,7 @@ export default async function RootLayout({
           feedback={{
             content: 'Question? Give us feedback →',
             labels: 'documentation',
-            link: 'https://github.com/AgentCoqui/coqui/issues/new',
+            link: 'https://github.com/carmelosantana/coqui/issues/new',
           }}
           navigation={{ prev: true, next: true }}
           sidebar={{ defaultMenuCollapseLevel: 1, autoCollapse: true, toggleButton: true }}

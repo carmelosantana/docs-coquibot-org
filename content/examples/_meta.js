@@ -1,6 +1,6 @@
 export default {
   "toolkit": "Toolkit",
-  "profiles": "Profiles",
+  "personas": "Profiles",
   "preferences": "Preferences",
   "skills": "Skills",
 }

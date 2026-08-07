@@ -7,5 +7,5 @@ export default {
   "questions": "Structured Questions",
   "projects": "Projects",
   "roles": "Roles",
-  "profiles": "Profiles",
+  "personas": "Personas",
 }
